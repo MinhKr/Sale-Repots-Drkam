@@ -1,15 +1,8 @@
-import { Headset } from "lucide-react";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { ReportTab } from "@/components/reports/report-tab";
+import { CSKH_SEED } from "@/lib/mock/reports";
 
 export const metadata = { title: "Báo cáo CSKH" };
 
 export default function CskhReportPage() {
-  return (
-    <PagePlaceholder
-      icon={Headset}
-      title="Báo cáo CSKH"
-      description="Danh sách và form nhập báo cáo chăm sóc khách hàng, cùng cơ chế tự tính chỉ số trên dữ liệu giả."
-      phase="Phiên 2"
-    />
-  );
+  return <ReportTab tab="CSKH" initialRows={CSKH_SEED} />;
 }

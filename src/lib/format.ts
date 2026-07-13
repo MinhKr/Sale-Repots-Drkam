@@ -50,3 +50,19 @@ export function formatDelta(ratio: number): { text: string; positive: boolean } 
 function round(n: number): string {
   return n.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 }
+
+/** "2026-07-13" -> "13/07/2026" */
+export function formatDateVn(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Định dạng một giá trị theo loại ô (int/money/percent) */
+export function formatMetric(
+  value: number,
+  kind: "int" | "money" | "percent",
+): string {
+  if (kind === "money") return formatCurrency(value);
+  if (kind === "percent") return formatPercent(value, 1);
+  return formatNumber(value);
+}
