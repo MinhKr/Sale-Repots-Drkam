@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   DrKam Sales Report — Design tokens
+   Brand primary = ĐỎ #D32027 (xem docs/design-tokens.md). KHÔNG dùng xanh dương.
+   ========================================================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Fonts: heading Montserrat, body Inter, số tabular mono */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), var(--font-inter), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* --- shadcn semantic tokens --- */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* --- Brand scales (dùng trực tiếp: bg-brand-500, text-accent-600, ...) --- */
+  /* Đặt tên "brand" cho thang đỏ để không đụng semantic "primary" của shadcn */
+  --color-brand-50: #fef2f2;
+  --color-brand-100: #fce0e1;
+  --color-brand-200: #f7bec1;
+  --color-brand-300: #ef9297;
+  --color-brand-400: #e25058;
+  --color-brand-500: #d32027;
+  --color-brand-600: #b70f1b;
+  --color-brand-700: #971018;
+  --color-brand-800: #7a1218;
+  --color-brand-900: #5e0f14;
+
+  --color-accent-50: #fff6ed;
+  --color-accent-100: #ffe9d5;
+  --color-accent-200: #fed0aa;
+  --color-accent-300: #fdb174;
+  --color-accent-400: #fd8a3c;
+  --color-accent-500: #fd6e1d;
+  --color-accent-600: #e85a0c;
+  --color-accent-700: #c0470a;
+
+  --color-gold-400: #ffb020;
+  --color-gold-500: #f59000;
+  --color-gold-600: #d97706;
+
+  --color-success-50: #ecfdf3;
+  --color-success-500: #01a14f;
+  --color-success-600: #017a3c;
+
+  --color-warning-50: #fff8e1;
+  --color-warning-500: #ffc107;
+  --color-warning-600: #d9a406;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-500: #e11d48;
+  --color-danger-600: #be123c;
+
+  /* Leaderboard rank colors */
+  --color-rank-gold: #f59000;
+  --color-rank-silver: #94a3b8;
+  --color-rank-bronze: #b45309;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  --background: #f8fafc; /* slate-50 nền body */
+  --foreground: #0f172a; /* slate-900 text chính */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  /* Primary = ĐỎ DrKam */
+  --primary: #d32027;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9; /* slate-100 */
+  --secondary-foreground: #1f2937;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* slate-500 */
+  --accent: #fff6ed; /* accent-50 cam nhạt cho hover/highlight */
+  --accent-foreground: #b70f1b;
+
+  /* Destructive = rose, lệch tông với đỏ brand để phân biệt nút xoá */
+  --destructive: #e11d48;
+
+  --border: #e2e8f0; /* slate-200 */
+  --input: #d1d5db; /* slate-300 */
+  --ring: #d32027; /* focus ring = brand đỏ */
+
+  /* Chart palette (Recharts) — brand đỏ/cam/vàng/xanh lá/slate */
+  --chart-1: #d32027;
+  --chart-2: #fd6e1d;
+  --chart-3: #f59000;
+  --chart-4: #01a14f;
+  --chart-5: #475569;
+
+  /* Sidebar (tối, nền đỏ đậm brand) */
+  --sidebar: #5e0f14; /* brand-900 */
+  --sidebar-foreground: #fce0e1;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #d32027;
+  --sidebar-accent: #7a1218; /* brand-800 hover */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #7a1218;
+  --sidebar-ring: #fd6e1d;
+}
+
+.dark {
+  --background: #0b0f17;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+  --primary: #e25058; /* brand-400 sáng hơn trên nền tối */
+  --primary-foreground: #1a0708;
+  --secondary: #1f2937;
+  --secondary-foreground: #f8fafc;
+  --muted: #1f2937;
+  --muted-foreground: #94a3b8;
+  --accent: #3a1a12;
+  --accent-foreground: #fdb174;
+  --destructive: #fb7185;
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: #e25058;
+  --chart-1: #e25058;
+  --chart-2: #fd8a3c;
+  --chart-3: #ffb020;
+  --chart-4: #34d399;
+  --chart-5: #94a3b8;
+  --sidebar: #1a0708;
+  --sidebar-foreground: #fce0e1;
+  --sidebar-primary: #e25058;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #3a1a12;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #fd8a3c;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1, h2, h3, h4, h5 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  /* Ô nhập báo cáo (người dùng gõ) — vàng, viền cam */
+  .cell-input {
+    @apply bg-yellow-50 border border-accent-500/70 rounded-md px-2 py-1 text-right tabular-nums
+           focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500;
+  }
+  /* Ô tự tính (readonly) — nền đỏ nhạt, không cho sửa */
+  .cell-computed {
+    @apply bg-brand-50 text-slate-700 rounded-md px-2 py-1 text-right tabular-nums
+           cursor-not-allowed select-none;
+  }
+  /* Số tiền */
+  .money {
+    @apply text-right font-mono tabular-nums;
+  }
+}

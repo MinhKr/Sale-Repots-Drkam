@@ -1,0 +1,57 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Headset,
+  Star,
+  Radio,
+  Megaphone,
+  UserRound,
+  Workflow,
+  Target,
+  FileDown,
+} from "lucide-react";
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+export interface NavGroup {
+  /** Tiêu đề nhóm (null = không hiển thị tiêu đề) */
+  title: string | null;
+  items: NavItem[];
+}
+
+/** Cấu trúc điều hướng — 11 màn theo lộ trình */
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    title: null,
+    items: [{ label: "Trang chủ", href: "/home", icon: LayoutDashboard }],
+  },
+  {
+    title: "Báo cáo",
+    items: [
+      { label: "Sale", href: "/reports/sale", icon: ShoppingBag },
+      { label: "CSKH", href: "/reports/cskh", icon: Headset },
+      { label: "Sao Xấu", href: "/reports/sao-xau", icon: Star },
+      { label: "Livestream", href: "/reports/livestream", icon: Radio },
+      { label: "Marketing", href: "/reports/mkt", icon: Megaphone },
+    ],
+  },
+  {
+    title: "Phân tích",
+    items: [
+      { label: "Dashboard cá nhân", href: "/dashboard-ca-nhan", icon: UserRound },
+      { label: "Pipeline khách sỉ", href: "/pipeline", icon: Workflow },
+    ],
+  },
+  {
+    title: "Quản trị",
+    items: [
+      { label: "Cấu hình KPI", href: "/kpi", icon: Target },
+      { label: "Xuất báo cáo", href: "/export", icon: FileDown },
+    ],
+  },
+];

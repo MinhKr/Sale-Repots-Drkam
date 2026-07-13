@@ -67,4 +67,5 @@
 - [x] Chốt theme màu đỏ DrKam (`docs/design-tokens.md`)
 - [x] Lập lộ trình này
 - [x] Chốt danh sách nhân sự thật (11 NV + Lead)
-- [ ] **P0 — Scaffold Next.js + design system** ← phiên kế tiếp
+- [x] **P0 — Scaffold Next.js 16 + design system** (shell Sidebar/Header/user menu, theme đỏ DrKam, mock nhân sự, 11 route placeholder + Login + Trang chủ)
+- [ ] **P1 — Đăng nhập + Trang chủ + Dashboard team** ← phiên kế tiếp
