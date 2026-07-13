@@ -1,4 +1,4 @@
-import { CalendarRange, Coins, Target, TrendingUp } from "lucide-react";
+import { CalendarRange, Coins, TrendingUp } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,20 +6,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { StatTile } from "@/components/dashboard/stat-tile";
+import { MonthTargetCard } from "@/components/dashboard/month-target-card";
 import { RevenueTrendChart } from "@/components/dashboard/revenue-trend-chart";
 import { TeamLeaderboard } from "@/components/dashboard/team-leaderboard";
 import { CURRENT_USER } from "@/lib/mock/employees";
 import { TEAM_SUMMARY } from "@/lib/mock/dashboard";
-import {
-  formatCompactVnd,
-  formatDelta,
-  formatPercent,
-} from "@/lib/format";
+import { formatCompactVnd, formatDelta } from "@/lib/format";
 
 export const metadata = { title: "Trang chủ" };
 
 const { homQua, tuanNay, thangNay, mucTieuThang } = TEAM_SUMMARY;
-const progressThang = thangNay.value / mucTieuThang;
 
 export default function HomePage() {
   return (
@@ -34,8 +30,15 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Tiến độ mục tiêu tháng — nổi bật, full-width, trên cùng */}
+      <MonthTargetCard
+        achieved={thangNay.value}
+        target={mucTieuThang}
+        period="tháng 07/2026"
+      />
+
+      {/* 3 KPI doanh thu */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatTile
           label="Doanh thu hôm qua"
           value={formatCompactVnd(homQua.value)}
@@ -56,13 +59,6 @@ export default function HomePage() {
           delta={formatDelta(thangNay.deltaVsTruoc)}
           sub="so tháng trước"
           icon={TrendingUp}
-        />
-        <StatTile
-          label="Tiến độ mục tiêu tháng"
-          value={formatPercent(progressThang, 1)}
-          sub={`Mục tiêu ${formatCompactVnd(mucTieuThang)}`}
-          icon={Target}
-          progress={progressThang}
         />
       </div>
 

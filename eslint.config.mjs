@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Skill/tool ngoài (repo git riêng, không thuộc source dự án)
+    "ui-ux-pro-max-skill/**",
   ]),
 ]);
 
