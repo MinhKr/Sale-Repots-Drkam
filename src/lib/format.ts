@@ -57,12 +57,14 @@ export function formatDateVn(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-/** Định dạng một giá trị theo loại ô (int/money/percent) */
+/** Định dạng một giá trị theo loại ô (int/money/percent/float) */
 export function formatMetric(
   value: number,
-  kind: "int" | "money" | "percent",
+  kind: "int" | "money" | "percent" | "float",
 ): string {
   if (kind === "money") return formatCurrency(value);
   if (kind === "percent") return formatPercent(value, 1);
+  if (kind === "float")
+    return value.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
   return formatNumber(value);
 }

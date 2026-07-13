@@ -1,15 +1,25 @@
 import type { DeptCode, ReportTab } from "./types";
 
 /** Kiểu ô hiển thị / định dạng giá trị */
-export type ValueKind = "int" | "money" | "percent";
+export type ValueKind = "int" | "money" | "percent" | "float";
 
 /** Ô nhập tay (ô vàng) */
 export interface InputField {
   key: string;
   label: string;
-  kind: "int" | "money";
+  kind: "int" | "money" | "float";
   /** nhóm để bố cục form (vd "Tương tác", "Đơn hàng") */
   group: string;
+}
+
+/** Cảnh báo tồn lũy kế theo ngưỡng (tab Sao Xấu) */
+export interface BacklogConfig {
+  label: string;
+  unit: string;
+  /** ngưỡng cảnh báo — vượt ngưỡng thì báo đỏ */
+  threshold: number;
+  /** net phát sinh trong 1 dòng (vd sao xấu mới - đã xử lý) */
+  net: (v: Record<string, number>) => number;
 }
 
 /** Ô tự tính (ô xanh, readonly) — tính từ các ô nhập + ô tự tính trước đó */
@@ -36,6 +46,8 @@ export interface ReportConfig {
   computed: ComputedField[];
   /** Các cột số liệu (ngoài Nhân viên/Ngày) hiển thị ở bảng */
   tableMetrics: TableMetric[];
+  /** Nếu có: hiển thị khối cảnh báo tồn lũy kế trên bảng (Sao Xấu) */
+  backlog?: BacklogConfig;
 }
 
 /** Một dòng báo cáo (mock) — chỉ lưu giá trị ô nhập; ô tự tính suy ra khi hiển thị */
@@ -146,10 +158,126 @@ export const CSKH_CONFIG: ReportConfig = {
   ],
 };
 
+/* ============================ TAB SAO XẤU ============================ */
+// reports_bad_review — CSKH có thể nhập. Có khối cảnh báo tồn lũy kế theo ngưỡng.
+
+export const SAO_XAU_CONFIG: ReportConfig = {
+  tab: "SAO_XAU",
+  title: "Sao Xấu",
+  allowedDepts: ["CSKH", "LEAD"],
+  inputs: [
+    { key: "newBad", label: "Sao xấu mới", kind: "int", group: "Phát sinh" },
+    { key: "resolved", label: "Đã xử lý / gỡ", kind: "int", group: "Phát sinh" },
+    { key: "shopee", label: "Shopee", kind: "int", group: "Theo sàn" },
+    { key: "tiktok", label: "TikTok", kind: "int", group: "Theo sàn" },
+    { key: "lazada", label: "Lazada", kind: "int", group: "Theo sàn" },
+  ],
+  computed: [
+    { key: "tonNgay", label: "Tồn trong ngày", kind: "int", compute: (v) => v.newBad - v.resolved },
+    {
+      key: "tiLeXuLy",
+      label: "Tỉ lệ xử lý",
+      kind: "percent",
+      compute: (v) => ratio(v.resolved, v.newBad),
+    },
+  ],
+  tableMetrics: [
+    { key: "newBad", label: "Sao xấu mới", kind: "int" },
+    { key: "resolved", label: "Đã xử lý", kind: "int" },
+    { key: "tonNgay", label: "Tồn/ngày", kind: "int" },
+  ],
+  backlog: {
+    label: "Tồn sao xấu lũy kế",
+    unit: "sao xấu",
+    threshold: 10,
+    net: (v) => v.newBad - v.resolved,
+  },
+};
+
+/* ============================ TAB LIVESTREAM ============================ */
+// reports_livestream — Lead nhập hộ (bulk 6 dòng). Fields theo ví dụ bulk trong kế hoạch.
+
+export const LIVESTREAM_CONFIG: ReportConfig = {
+  tab: "LIVESTREAM",
+  title: "Livestream",
+  allowedDepts: ["LIVESTREAM", "LEAD"],
+  inputs: [
+    { key: "sessions", label: "Số phiên", kind: "int", group: "Phiên live" },
+    { key: "hours", label: "Số giờ live", kind: "float", group: "Phiên live" },
+    { key: "buyers", label: "Người mua", kind: "int", group: "Kết quả" },
+    { key: "revenue", label: "Doanh thu", kind: "money", group: "Kết quả" },
+  ],
+  computed: [
+    {
+      key: "dtTrenGio",
+      label: "DT / giờ",
+      kind: "money",
+      compute: (v) => Math.round(ratio(v.revenue, v.hours)),
+    },
+    {
+      key: "dtTrenNguoiMua",
+      label: "DT / người mua",
+      kind: "money",
+      compute: (v) => Math.round(ratio(v.revenue, v.buyers)),
+    },
+  ],
+  tableMetrics: [
+    { key: "hours", label: "Giờ live", kind: "float" },
+    { key: "buyers", label: "Người mua", kind: "int" },
+    { key: "revenue", label: "Doanh thu", kind: "money" },
+    { key: "dtTrenGio", label: "DT/giờ", kind: "money" },
+  ],
+};
+
+/* ============================ TAB MKT ============================ */
+// reports_marketing — Lead nhập hộ. Form đơn giản.
+
+export const MKT_CONFIG: ReportConfig = {
+  tab: "MKT",
+  title: "Marketing",
+  allowedDepts: ["MKT", "LEAD"],
+  inputs: [
+    { key: "adSpend", label: "Chi phí quảng cáo", kind: "money", group: "Chi phí" },
+    { key: "reach", label: "Tiếp cận", kind: "int", group: "Hiệu quả" },
+    { key: "messages", label: "Tin nhắn về", kind: "int", group: "Hiệu quả" },
+    { key: "leads", label: "Lead", kind: "int", group: "Hiệu quả" },
+    { key: "revenue", label: "Doanh thu từ MKT", kind: "money", group: "Kết quả" },
+  ],
+  computed: [
+    {
+      key: "cpl",
+      label: "Chi phí / lead",
+      kind: "money",
+      compute: (v) => Math.round(ratio(v.adSpend, v.leads)),
+    },
+    {
+      key: "cpm",
+      label: "Chi phí / tin nhắn",
+      kind: "money",
+      compute: (v) => Math.round(ratio(v.adSpend, v.messages)),
+    },
+    {
+      key: "roas",
+      label: "ROAS",
+      kind: "percent",
+      compute: (v) => ratio(v.revenue, v.adSpend),
+    },
+  ],
+  tableMetrics: [
+    { key: "adSpend", label: "Chi phí", kind: "money" },
+    { key: "leads", label: "Lead", kind: "int" },
+    { key: "revenue", label: "Doanh thu", kind: "money" },
+    { key: "roas", label: "ROAS", kind: "percent" },
+  ],
+};
+
 /** Registry config theo tab — dùng ở client để tránh truyền hàm qua ranh giới server/client */
 export const CONFIG_BY_TAB = {
   SALE: SALE_CONFIG,
   CSKH: CSKH_CONFIG,
+  SAO_XAU: SAO_XAU_CONFIG,
+  LIVESTREAM: LIVESTREAM_CONFIG,
+  MKT: MKT_CONFIG,
 } as const;
 
 export type ConfigTab = keyof typeof CONFIG_BY_TAB;
@@ -226,5 +354,53 @@ export const CSKH_SEED: ReportRow[] = [
     employeeId: "cskh-huong",
     date: "2026-07-12",
     values: { messReceived: 79, messReplied: 71, careCalls: 26, reorderCount: 10, reorderRevenue: 13_200_000, upsellCount: 2, upsellRevenue: 2_800_000, complaintsResolved: 1 },
+  },
+];
+
+// Tồn lũy kế = Σ(newBad - resolved) = 4 + 4 + 4 = 12 > ngưỡng 10 → cảnh báo đỏ
+export const SAO_XAU_SEED: ReportRow[] = [
+  {
+    id: "x-1",
+    employeeId: "cskh-huong",
+    date: "2026-07-13",
+    values: { newBad: 7, resolved: 3, shopee: 3, tiktok: 3, lazada: 1 },
+    note: "Đang khiếu nại 2 đơn TikTok Shop.",
+  },
+  {
+    id: "x-2",
+    employeeId: "cskh-phuong",
+    date: "2026-07-12",
+    values: { newBad: 6, resolved: 2, shopee: 2, tiktok: 3, lazada: 1 },
+  },
+  {
+    id: "x-3",
+    employeeId: "cskh-chinh",
+    date: "2026-07-11",
+    values: { newBad: 5, resolved: 1, shopee: 3, tiktok: 2, lazada: 0 },
+  },
+];
+
+export const LIVESTREAM_SEED: ReportRow[] = [
+  { id: "l-1", employeeId: "live-thu", date: "2026-07-13", values: { sessions: 2, hours: 4.5, buyers: 120, revenue: 5_000_000 } },
+  { id: "l-2", employeeId: "live-thuy-mn", date: "2026-07-13", values: { sessions: 1, hours: 3, buyers: 80, revenue: 3_200_000 } },
+  { id: "l-3", employeeId: "live-trang-mn", date: "2026-07-13", values: { sessions: 2, hours: 5, buyers: 140, revenue: 6_100_000 } },
+  { id: "l-4", employeeId: "live-vy-mn", date: "2026-07-13", values: { sessions: 1, hours: 2.5, buyers: 45, revenue: 1_800_000 } },
+  { id: "l-5", employeeId: "live-thuy", date: "2026-07-13", values: { sessions: 2, hours: 4, buyers: 95, revenue: 4_300_000 } },
+  { id: "l-6", employeeId: "live-binh", date: "2026-07-13", values: { sessions: 1, hours: 3.5, buyers: 70, revenue: 2_900_000 } },
+];
+
+export const MKT_SEED: ReportRow[] = [
+  {
+    id: "m-1",
+    employeeId: "mkt-ha",
+    date: "2026-07-13",
+    values: { adSpend: 4_500_000, reach: 82_000, messages: 340, leads: 60, revenue: 15_300_000 },
+    note: "Đẩy chiến dịch mẫu mới trên TikTok Ads.",
+  },
+  {
+    id: "m-2",
+    employeeId: "mkt-ha",
+    date: "2026-07-12",
+    values: { adSpend: 3_800_000, reach: 70_000, messages: 290, leads: 48, revenue: 12_100_000 },
   },
 ];

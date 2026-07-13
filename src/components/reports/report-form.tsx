@@ -129,12 +129,16 @@ export function ReportForm({
                   {f.kind === "money" && (
                     <span className="text-muted-foreground"> (₫)</span>
                   )}
+                  {f.kind === "float" && (
+                    <span className="text-muted-foreground"> (giờ)</span>
+                  )}
                 </Label>
                 <input
                   id={`f-${f.key}`}
                   type="number"
                   min={0}
-                  inputMode="numeric"
+                  step={f.kind === "float" ? 0.5 : 1}
+                  inputMode={f.kind === "float" ? "decimal" : "numeric"}
                   className="cell-input w-full text-sm"
                   value={values[f.key] === 0 ? "" : values[f.key]}
                   placeholder="0"

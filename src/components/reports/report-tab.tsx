@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,11 +25,62 @@ import { ReportForm } from "./report-form";
 import {
   computeMetrics,
   CONFIG_BY_TAB,
+  type BacklogConfig,
   type ConfigTab,
   type ReportRow,
 } from "@/lib/mock/reports";
 import { getEmployee } from "@/lib/mock/employees";
-import { formatDateVn, formatMetric } from "@/lib/format";
+import { formatDateVn, formatMetric, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+/** Khối cảnh báo tồn lũy kế theo ngưỡng (Sao Xấu) */
+function BacklogAlert({
+  backlog,
+  rows,
+}: {
+  backlog: BacklogConfig;
+  rows: ReportRow[];
+}) {
+  const total = rows.reduce((sum, r) => sum + backlog.net(r.values), 0);
+  const level =
+    total >= backlog.threshold
+      ? "danger"
+      : total >= backlog.threshold * 0.7
+        ? "warning"
+        : "ok";
+
+  const styles = {
+    danger: "border-danger-500/40 bg-danger-50 text-danger-600",
+    warning: "border-warning-500/50 bg-warning-50 text-warning-600",
+    ok: "border-success-500/40 bg-success-50 text-success-600",
+  }[level];
+
+  const Icon = level === "ok" ? ShieldCheck : TriangleAlert;
+  const message =
+    level === "danger"
+      ? `Vượt ngưỡng ${backlog.threshold} — cần xử lý gấp!`
+      : level === "warning"
+        ? `Gần chạm ngưỡng ${backlog.threshold} — theo dõi sát.`
+        : `Trong ngưỡng an toàn (< ${backlog.threshold}).`;
+
+  return (
+    <div className={cn("flex items-center gap-4 rounded-lg border p-4", styles)}>
+      <Icon className="size-8 shrink-0" />
+      <div className="flex-1">
+        <p className="text-sm font-medium opacity-90">{backlog.label}</p>
+        <p className="font-heading text-2xl font-bold tabular-nums">
+          {formatNumber(total)}{" "}
+          <span className="text-base font-normal opacity-70">
+            / {backlog.threshold} {backlog.unit}
+          </span>
+        </p>
+      </div>
+      <p className="hidden max-w-[220px] text-right text-sm font-medium sm:block">
+        {message}
+      </p>
+    </div>
+  );
+}
 
 interface ReportTabProps {
   tab: ConfigTab;
@@ -86,6 +137,8 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
           Nhập báo cáo
         </Button>
       </div>
+
+      {config.backlog && <BacklogAlert backlog={config.backlog} rows={rows} />}
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">

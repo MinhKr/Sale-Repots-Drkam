@@ -1,15 +1,8 @@
-import { Megaphone } from "lucide-react";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { ReportTab } from "@/components/reports/report-tab";
+import { MKT_SEED } from "@/lib/mock/reports";
 
 export const metadata = { title: "Báo cáo Marketing" };
 
 export default function MktReportPage() {
-  return (
-    <PagePlaceholder
-      icon={Megaphone}
-      title="Báo cáo Marketing"
-      description="Form nhập chỉ số Marketing (Lead nhập hộ) sẽ được dựng trên dữ liệu giả."
-      phase="Phiên 3"
-    />
-  );
+  return <ReportTab tab="MKT" initialRows={MKT_SEED} />;
 }

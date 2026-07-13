@@ -1,15 +1,8 @@
-import { Radio } from "lucide-react";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { LivestreamTab } from "@/components/reports/livestream-tab";
+import { LIVESTREAM_SEED } from "@/lib/mock/reports";
 
 export const metadata = { title: "Báo cáo Livestream" };
 
 export default function LivestreamReportPage() {
-  return (
-    <PagePlaceholder
-      icon={Radio}
-      title="Báo cáo Livestream"
-      description="Nhập nhanh (bulk) 6 dòng Livestream do Lead nhập hộ, trên dữ liệu giả."
-      phase="Phiên 3"
-    />
-  );
+  return <LivestreamTab initialRows={LIVESTREAM_SEED} />;
 }
