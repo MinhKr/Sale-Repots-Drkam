@@ -68,4 +68,5 @@
 - [x] Lập lộ trình này
 - [x] Chốt danh sách nhân sự thật (11 NV + Lead)
 - [x] **P0 — Scaffold Next.js 16 + design system** (shell Sidebar/Header/user menu, theme đỏ DrKam, mock nhân sự, 11 route placeholder + Login + Trang chủ)
-- [ ] **P1 — Đăng nhập + Trang chủ + Dashboard team** ← phiên kế tiếp
+- [x] **P1 — Đăng nhập + Trang chủ Dashboard team** (4 KPI tiles doanh thu hôm qua/tuần/tháng + tiến độ mục tiêu, biểu đồ Recharts 14 ngày, bảng xếp hạng NV có medal + progress + badge trạng thái)
+- [ ] **P2 — Tab Sale + Tab CSKH** (bảng báo cáo + Dialog form ô vàng/ô tự tính) ← phiên kế tiếp
