@@ -67,4 +67,9 @@
 - [x] Chốt theme màu đỏ DrKam (`docs/design-tokens.md`)
 - [x] Lập lộ trình này
 - [x] Chốt danh sách nhân sự thật (11 NV + Lead)
-- [ ] **P0 — Scaffold Next.js + design system** ← phiên kế tiếp
+- [x] **P0 — Scaffold Next.js 16 + design system** (shell Sidebar/Header/user menu, theme đỏ DrKam, mock nhân sự, 11 route placeholder + Login + Trang chủ)
+- [x] **P1 — Đăng nhập + Trang chủ Dashboard team** (4 KPI tiles doanh thu hôm qua/tuần/tháng + tiến độ mục tiêu, biểu đồ Recharts 14 ngày, bảng xếp hạng NV có medal + progress + badge trạng thái)
+- [x] **P2 — Tab Sale + Tab CSKH** (khung config-driven: bảng danh sách + Dialog form ô vàng nhập tay / ô xanh tự tính real-time bằng React state, thêm/sửa dòng cập nhật state; Sale theo schema kế hoạch, CSKH bộ chỉ số tương đương)
+- [x] **P3 — Tab Sao Xấu + Livestream + MKT** (Sao Xấu: khối cảnh báo tồn lũy kế theo ngưỡng, tính live; Livestream: form bulk 6 dòng + dán nhanh từ TikTok Center; MKT: form CPL/CPM/ROAS tái dùng khung)
+- [x] **P4 — Dashboard cá nhân + Pipeline khách sỉ** (Dashboard cá nhân: chọn NV → stat tiles + LineChart Recharts 14 ngày; Pipeline: kanban 5 giai đoạn, kéo-thả đổi trạng thái (native DnD), filter theo NV, dialog chi tiết + timeline log liên hệ + thêm log)
+- [ ] **P5 — Cấu hình KPI + Xuất báo cáo (UI)** ← phiên kế tiếp
