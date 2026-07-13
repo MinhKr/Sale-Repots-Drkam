@@ -58,6 +58,40 @@ const REVENUE_BY_EMP: Array<[string, number, number]> = [
 ];
 
 /** Bảng xếp hạng nhân viên theo doanh thu tháng (đã sort giảm dần) */
+/** Số liệu KPI cá nhân của 1 nhân viên (từ ranking) */
+export function getPersonalStats(employeeId: string) {
+  const row = RANKING.find((r) => r.employeeId === employeeId);
+  if (!row) return null;
+  return {
+    ...row,
+    total: RANKING.length,
+  };
+}
+
+/** Danh sách NV có trong bảng xếp hạng (dùng cho selector dashboard cá nhân) */
+export function rankedEmployeeIds(): string[] {
+  return RANKING.map((r) => r.employeeId);
+}
+
+// Hệ số dao động doanh thu theo ngày (tất định) — tái dùng cho mọi NV
+const DAILY_FACTORS = [
+  0.8, 1.1, 0.95, 1.2, 0.7, 0.9, 1.05, 1.0, 1.15, 0.85, 1.0, 0.9, 1.25, 0.95,
+];
+
+/** Chuỗi doanh thu 14 ngày của 1 nhân viên (mock, suy từ doanh thu tháng) */
+export function getPersonalSeries(employeeId: string): RevenuePoint[] {
+  const row = RANKING.find((r) => r.employeeId === employeeId);
+  const revenue = row?.revenue ?? 0;
+  const target = row?.target ?? 0;
+  const dailyBase = revenue / 26;
+  const dailyTarget = Math.round(target / 26);
+  return REVENUE_14D.map((p, i) => ({
+    label: p.label,
+    doanhThu: Math.round(dailyBase * DAILY_FACTORS[i]),
+    mucTieu: dailyTarget,
+  }));
+}
+
 export const RANKING: RankRow[] = REVENUE_BY_EMP.map(([employeeId, revenue, target]) => {
   const emp = EMPLOYEES.find((e) => e.id === employeeId)!;
   const progress = target > 0 ? revenue / target : 0;
