@@ -27,16 +27,22 @@ import {
   YEARS,
 } from "@/lib/mock/kpi";
 import { MoneyInput } from "@/components/money-input";
+import { PageHeader } from "@/components/page-header";
+import { useLocalStorageState } from "@/lib/use-local-storage-state";
 import { DEPT_LABEL, employeesByDept } from "@/lib/mock/employees";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
 export function KpiConfig() {
   const [month, setMonth] = useState(7);
   const [year, setYear] = useState(2026);
-  const [warning, setWarning] = useState(KPI_DEFAULT_WARNING);
-  const [targets, setTargets] = useState<Record<string, number>>({
-    ...KPI_DEFAULT_TARGETS,
-  });
+  const [warning, setWarning] = useLocalStorageState(
+    "kpi:warning",
+    KPI_DEFAULT_WARNING,
+  );
+  const [targets, setTargets] = useLocalStorageState<Record<string, number>>(
+    "kpi:targets",
+    { ...KPI_DEFAULT_TARGETS },
+  );
 
   const teamTotal = Object.values(targets).reduce((s, v) => s + v, 0);
 
@@ -50,53 +56,52 @@ export function KpiConfig() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
-      {/* Header + kỳ */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">Cấu hình KPI</h2>
-          <p className="text-sm text-muted-foreground">
-            Đặt mục tiêu doanh thu tháng cho từng nhân viên · dữ liệu giả
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={String(month)}
-            onValueChange={(v) => v && setMonth(Number(v))}
-            items={Object.fromEntries(MONTHS.map((m) => [String(m), `Tháng ${m}`]))}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  Tháng {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(year)}
-            onValueChange={(v) => v && setYear(Number(v))}
-          >
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={copyPrev}>
-            <Copy className="size-4" />
-            Sao chép tháng trước
-          </Button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        title="Cấu hình KPI"
+        description="Đặt mục tiêu doanh thu tháng cho từng nhân viên · dữ liệu giả"
+        action={
+          <>
+            <Select
+              value={String(month)}
+              onValueChange={(v) => v && setMonth(Number(v))}
+              items={Object.fromEntries(
+                MONTHS.map((m) => [String(m), `Tháng ${m}`]),
+              )}
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    Tháng {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={String(year)}
+              onValueChange={(v) => v && setYear(Number(v))}
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={copyPrev}>
+              <Copy className="size-4" />
+              Sao chép tháng trước
+            </Button>
+          </>
+        }
+      />
 
       {/* Ngưỡng cảnh báo */}
       <Card>

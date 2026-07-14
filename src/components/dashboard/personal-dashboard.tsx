@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { StatTile } from "./stat-tile";
 import { StatusBadge } from "./status-badge";
+import { PageHeader } from "@/components/page-header";
 import {
   getPersonalSeries,
   getPersonalStats,
@@ -92,35 +93,31 @@ export function PersonalDashboard() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Chọn nhân viên */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">
-            Dashboard cá nhân
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Chọn nhân viên để xem chi tiết KPI · tháng 07/2026
-          </p>
-        </div>
-        <Select
-          value={empId}
-          onValueChange={(v) => setEmpId(v ?? EMP_IDS[0])}
-          items={EMP_ITEMS}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Chọn nhân viên" />
-          </SelectTrigger>
-          <SelectContent>
-            {EMP_IDS.map((id) => {
-              const e = getEmployee(id);
-              return (
-                <SelectItem key={id} value={id}>
-                  {e?.name} · {e ? DEPT_LABEL[e.dept] : ""}
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Dashboard cá nhân"
+        description="Chọn nhân viên để xem chi tiết KPI · tháng 07/2026"
+        action={
+          <Select
+            value={empId}
+            onValueChange={(v) => setEmpId(v ?? EMP_IDS[0])}
+            items={EMP_ITEMS}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Chọn nhân viên" />
+            </SelectTrigger>
+            <SelectContent>
+              {EMP_IDS.map((id) => {
+                const e = getEmployee(id);
+                return (
+                  <SelectItem key={id} value={id}>
+                    {e?.name} · {e ? DEPT_LABEL[e.dept] : ""}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {/* Header nhân viên */}
       {emp && stats && (

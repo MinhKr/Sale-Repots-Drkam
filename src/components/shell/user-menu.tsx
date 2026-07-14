@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, UserCog } from "lucide-react";
+import { ChevronDown, LogOut, RotateCcw, UserCog } from "lucide-react";
+import { clearAllLocalData } from "@/lib/use-local-storage-state";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -42,6 +43,15 @@ export function UserMenu() {
         <DropdownMenuItem disabled>
           <UserCog className="size-4" />
           Tài khoản
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            clearAllLocalData();
+            window.location.reload();
+          }}
+        >
+          <RotateCcw className="size-4" />
+          Xóa dữ liệu tạm
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
