@@ -40,6 +40,12 @@ import {
 } from "@/lib/format";
 
 const EMP_IDS = rankedEmployeeIds();
+const EMP_ITEMS: Record<string, string> = Object.fromEntries(
+  EMP_IDS.map((id) => {
+    const e = getEmployee(id);
+    return [id, e ? `${e.name} · ${DEPT_LABEL[e.dept]}` : id];
+  }),
+);
 
 interface TooltipEntry {
   name?: string;
@@ -95,7 +101,11 @@ export function PersonalDashboard() {
             Chọn nhân viên để xem chi tiết KPI · tháng 07/2026
           </p>
         </div>
-        <Select value={empId} onValueChange={(v) => setEmpId(v ?? EMP_IDS[0])}>
+        <Select
+          value={empId}
+          onValueChange={(v) => setEmpId(v ?? EMP_IDS[0])}
+          items={EMP_ITEMS}
+        >
           <SelectTrigger className="w-56">
             <SelectValue placeholder="Chọn nhân viên" />
           </SelectTrigger>

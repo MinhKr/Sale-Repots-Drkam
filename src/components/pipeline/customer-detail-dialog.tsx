@@ -91,6 +91,7 @@ export function CustomerDetailDialog({
             onValueChange={(v) =>
               v && onStageChange(customer.id, v as WholesaleStage)
             }
+            items={Object.fromEntries(STAGES.map((s) => [s.key, s.label]))}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -114,6 +115,7 @@ export function CustomerDetailDialog({
             <Select
               value={channel}
               onValueChange={(v) => v && setChannel(v as ContactChannel)}
+              items={CHANNEL_LABEL}
             >
               <SelectTrigger className="w-32 shrink-0">
                 <SelectValue />
