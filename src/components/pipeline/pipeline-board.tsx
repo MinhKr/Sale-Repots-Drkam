@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CustomerDetailDialog } from "./customer-detail-dialog";
+import { PageHeader } from "@/components/page-header";
+import { useLocalStorageState } from "@/lib/use-local-storage-state";
 import {
   STAGES,
   WHOLESALE_SEED,
@@ -31,7 +33,10 @@ const FILTER_ITEMS: Record<string, string> = {
 };
 
 export function PipelineBoard() {
-  const [customers, setCustomers] = useState<WholesaleCustomer[]>(WHOLESALE_SEED);
+  const [customers, setCustomers] = useLocalStorageState<WholesaleCustomer[]>(
+    "wholesale",
+    WHOLESALE_SEED,
+  );
   const [filter, setFilter] = useState<string>("all");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<WholesaleStage | null>(null);
@@ -84,36 +89,30 @@ export function PipelineBoard() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header + filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">
-            Pipeline khách sỉ
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {visible.length} khách · tiềm năng {formatCompactVnd(totalValue)} ·
-            đã chốt {formatCompactVnd(wonValue)}
-          </p>
-        </div>
-        <Select
-          value={filter}
-          onValueChange={(v) => setFilter(v ?? "all")}
-          items={FILTER_ITEMS}
-        >
-          <SelectTrigger className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả phụ trách</SelectItem>
-            {ASSIGNEES.map((id) => (
-              <SelectItem key={id} value={id}>
-                {getEmployee(id)?.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        title="Pipeline khách sỉ"
+        description={`${visible.length} khách · tiềm năng ${formatCompactVnd(totalValue)} · đã chốt ${formatCompactVnd(wonValue)}`}
+        action={
+          <Select
+            value={filter}
+            onValueChange={(v) => setFilter(v ?? "all")}
+            items={FILTER_ITEMS}
+          >
+            <SelectTrigger className="w-52">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả phụ trách</SelectItem>
+              {ASSIGNEES.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {getEmployee(id)?.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {/* Kanban */}
       <div className="flex gap-3 overflow-x-auto pb-2">

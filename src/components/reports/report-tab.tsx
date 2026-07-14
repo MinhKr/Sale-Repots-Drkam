@@ -6,6 +6,7 @@ import {
   Pencil,
   Plus,
   ShieldCheck,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +40,8 @@ import {
 import { getEmployee } from "@/lib/mock/employees";
 import { formatDateVn, formatMetric, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
+import { useLocalStorageState } from "@/lib/use-local-storage-state";
 
 /** Khối cảnh báo tồn lũy kế theo ngưỡng (Sao Xấu) */
 function BacklogAlert({
@@ -96,10 +99,23 @@ interface ReportTabProps {
 
 export function ReportTab({ tab, initialRows }: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
-  const [rows, setRows] = useState<ReportRow[]>(initialRows);
+  const [rows, setRows] = useLocalStorageState<ReportRow[]>(
+    `reports:${tab}`,
+    initialRows,
+  );
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ReportRow | null>(null);
   const [seq, setSeq] = useState(1);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function openNew() {
     setEditing(null);
@@ -126,14 +142,18 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
     setOpen(false);
   }
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  function toggleExpand(id: string) {
+  function handleDelete(row: ReportRow) {
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.delete(row.id);
       return next;
+    });
+    toast.success("Đã xóa báo cáo", {
+      action: {
+        label: "Hoàn tác",
+        onClick: () => setRows((prev) => [row, ...prev]),
+      },
     });
   }
 
@@ -141,21 +161,17 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
   const colSpan = 4 + config.tableMetrics.length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">
-            Báo cáo {config.title}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {rows.length} báo cáo · dữ liệu giả
-          </p>
-        </div>
-        <Button onClick={openNew}>
-          <Plus className="size-4" />
-          Nhập báo cáo
-        </Button>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        title={`Báo cáo ${config.title}`}
+        description={`${rows.length} báo cáo · dữ liệu giả`}
+        action={
+          <Button onClick={openNew}>
+            <Plus className="size-4" />
+            Nhập báo cáo
+          </Button>
+        }
+      />
 
       {config.backlog && <BacklogAlert backlog={config.backlog} rows={rows} />}
 
@@ -172,7 +188,7 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
                     {m.label}
                   </TableHead>
                 ))}
-                <TableHead className="w-20 text-right">Thao tác</TableHead>
+                <TableHead className="w-28 text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -216,17 +232,31 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
                         </TableCell>
                       ))}
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(row);
-                          }}
-                        >
-                          <Pencil className="size-3.5" />
-                          Sửa
-                        </Button>
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(row);
+                            }}
+                          >
+                            <Pencil className="size-3.5" />
+                            Sửa
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                            title="Xóa báo cáo"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(row);
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     {isOpen && (

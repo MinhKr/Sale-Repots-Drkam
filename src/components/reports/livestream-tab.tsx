@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ClipboardPaste, Users } from "lucide-react";
+import { ClipboardPaste, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,6 +32,8 @@ import {
 } from "@/lib/mock/reports";
 import { employeesByDept, getEmployee } from "@/lib/mock/employees";
 import { formatCurrency, formatDateVn, formatMetric } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
+import { useLocalStorageState } from "@/lib/use-local-storage-state";
 
 const config = CONFIG_BY_TAB.LIVESTREAM;
 const STAFF = employeesByDept("LIVESTREAM");
@@ -46,7 +48,10 @@ function zeros(): ValMap {
 }
 
 export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
-  const [rows, setRows] = useState<ReportRow[]>(initialRows);
+  const [rows, setRows] = useLocalStorageState<ReportRow[]>(
+    "reports:LIVESTREAM",
+    initialRows,
+  );
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(TODAY_ISO);
   const [vals, setVals] = useState<ValMap>(zeros);
@@ -127,6 +132,16 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     toast.success("Đã lưu báo cáo Livestream");
   }
 
+  function handleDelete(row: ReportRow) {
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    toast.success("Đã xóa báo cáo", {
+      action: {
+        label: "Hoàn tác",
+        onClick: () => setRows((prev) => [row, ...prev]),
+      },
+    });
+  }
+
   const sorted = [...rows].sort(
     (a, b) => b.date.localeCompare(a.date) || a.employeeId.localeCompare(b.employeeId),
   );
@@ -138,24 +153,20 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     if (last && last.date === row.date) last.items.push(row);
     else groups.push({ date: row.date, items: [row] });
   }
-  const colSpan = 1 + config.tableMetrics.length;
+  const colSpan = 2 + config.tableMetrics.length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">
-            Báo cáo Livestream
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {rows.length} báo cáo · Lead nhập hộ 6 nhân viên
-          </p>
-        </div>
-        <Button onClick={openBulk}>
-          <Users className="size-4" />
-          Nhập bulk 6 dòng
-        </Button>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        title="Báo cáo Livestream"
+        description={`${rows.length} báo cáo · Lead nhập hộ 6 nhân viên`}
+        action={
+          <Button onClick={openBulk}>
+            <Users className="size-4" />
+            Nhập bulk 6 dòng
+          </Button>
+        }
+      />
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -168,6 +179,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                     {m.label}
                   </TableHead>
                 ))}
+                <TableHead className="w-16 text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -219,6 +231,17 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                               {formatMetric(metrics[m.key], m.kind)}
                             </TableCell>
                           ))}
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                              title="Xóa báo cáo"
+                              onClick={() => handleDelete(row)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
