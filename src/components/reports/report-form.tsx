@@ -41,6 +41,10 @@ export function ReportForm({
     () => EMPLOYEES.filter((e) => config.allowedDepts.includes(e.dept)),
     [config],
   );
+  const employeeItems = useMemo(
+    () => Object.fromEntries(employees.map((e) => [e.id, e.name])),
+    [employees],
+  );
 
   const [employeeId, setEmployeeId] = useState(
     initial?.employeeId ?? employees[0]?.id ?? "",
@@ -90,6 +94,7 @@ export function ReportForm({
           <Select
             value={employeeId}
             onValueChange={(v) => setEmployeeId(v ?? "")}
+            items={employeeItems}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Chọn nhân viên" />

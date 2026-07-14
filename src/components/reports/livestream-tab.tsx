@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ClipboardPaste, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ import {
   type ReportRow,
 } from "@/lib/mock/reports";
 import { employeesByDept, getEmployee } from "@/lib/mock/employees";
-import { formatDateVn, formatMetric } from "@/lib/format";
+import { formatCurrency, formatDateVn, formatMetric } from "@/lib/format";
 
 const config = CONFIG_BY_TAB.LIVESTREAM;
 const STAFF = employeesByDept("LIVESTREAM");
@@ -131,6 +131,15 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     (a, b) => b.date.localeCompare(a.date) || a.employeeId.localeCompare(b.employeeId),
   );
 
+  // Gom nhóm theo ngày (giữ thứ tự đã sort)
+  const groups: { date: string; items: ReportRow[] }[] = [];
+  for (const row of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === row.date) last.items.push(row);
+    else groups.push({ date: row.date, items: [row] });
+  }
+  const colSpan = 1 + config.tableMetrics.length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -154,7 +163,6 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Nhân viên</TableHead>
-                <TableHead>Ngày</TableHead>
                 {config.tableMetrics.map((m) => (
                   <TableHead key={m.key} className="text-right">
                     {m.label}
@@ -163,33 +171,58 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map((row) => {
-                const emp = getEmployee(row.employeeId);
-                const metrics = computeMetrics(config, row.values);
+              {groups.map((g) => {
+                const dayTotal = g.items.reduce(
+                  (s, r) => s + (r.values.revenue ?? 0),
+                  0,
+                );
                 return (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <Avatar className="size-8">
-                          <AvatarFallback className="bg-brand-100 text-xs font-semibold text-brand-700">
-                            {emp?.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{emp?.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="tabular-nums text-muted-foreground">
-                      {formatDateVn(row.date)}
-                    </TableCell>
-                    {config.tableMetrics.map((m) => (
-                      <TableCell
-                        key={m.key}
-                        className="text-right font-mono text-sm tabular-nums"
-                      >
-                        {formatMetric(metrics[m.key], m.kind)}
+                  <Fragment key={g.date}>
+                    {/* Dòng tiêu đề ngày */}
+                    <TableRow className="border-t-2 border-brand-100 bg-muted/60 hover:bg-muted/60">
+                      <TableCell colSpan={colSpan} className="py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-heading text-sm font-semibold tabular-nums">
+                            {formatDateVn(g.date)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {g.items.length} báo cáo · Tổng DT{" "}
+                            <span className="font-medium text-foreground">
+                              {formatCurrency(dayTotal)}
+                            </span>
+                          </span>
+                        </div>
                       </TableCell>
-                    ))}
-                  </TableRow>
+                    </TableRow>
+
+                    {/* Các dòng nhân viên trong ngày */}
+                    {g.items.map((row) => {
+                      const emp = getEmployee(row.employeeId);
+                      const metrics = computeMetrics(config, row.values);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="pl-6">
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="size-8">
+                                <AvatarFallback className="bg-brand-100 text-xs font-semibold text-brand-700">
+                                  {emp?.initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">{emp?.name}</span>
+                            </div>
+                          </TableCell>
+                          {config.tableMetrics.map((m) => (
+                            <TableCell
+                              key={m.key}
+                              className="text-right font-mono text-sm tabular-nums"
+                            >
+                              {formatMetric(metrics[m.key], m.kind)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      );
+                    })}
+                  </Fragment>
                 );
               })}
             </TableBody>

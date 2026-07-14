@@ -26,6 +26,7 @@ import {
   MONTHS,
   YEARS,
 } from "@/lib/mock/kpi";
+import { MoneyInput } from "@/components/money-input";
 import { DEPT_LABEL, employeesByDept } from "@/lib/mock/employees";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
@@ -38,11 +39,6 @@ export function KpiConfig() {
   });
 
   const teamTotal = Object.values(targets).reduce((s, v) => s + v, 0);
-
-  function setTarget(id: string, raw: string) {
-    const n = raw === "" ? 0 : Number(raw);
-    setTargets((prev) => ({ ...prev, [id]: Number.isFinite(n) ? n : 0 }));
-  }
 
   function copyPrev() {
     setTargets({ ...KPI_PREV_MONTH_TARGETS });
@@ -67,6 +63,7 @@ export function KpiConfig() {
           <Select
             value={String(month)}
             onValueChange={(v) => v && setMonth(Number(v))}
+            items={Object.fromEntries(MONTHS.map((m) => [String(m), `Tháng ${m}`]))}
           >
             <SelectTrigger className="w-28">
               <SelectValue />
@@ -157,14 +154,12 @@ export function KpiConfig() {
                 >
                   <span className="text-sm font-medium">{e.name}</span>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step={1_000_000}
+                    <MoneyInput
+                      value={targets[e.id] ?? 0}
+                      onValueChange={(n) =>
+                        setTargets((prev) => ({ ...prev, [e.id]: n }))
+                      }
                       className="cell-input w-44 text-sm"
-                      value={targets[e.id] === 0 ? "" : (targets[e.id] ?? "")}
-                      placeholder="0"
-                      onChange={(ev) => setTarget(e.id, ev.target.value)}
                     />
                     <span className="w-6 text-xs text-muted-foreground">₫</span>
                   </div>

@@ -226,6 +226,7 @@ export const LIVESTREAM_CONFIG: ReportConfig = {
     { key: "buyers", label: "Người mua", kind: "int" },
     { key: "revenue", label: "Doanh thu", kind: "money" },
     { key: "dtTrenGio", label: "DT/giờ", kind: "money" },
+    { key: "dtTrenNguoiMua", label: "DT/khách", kind: "money" },
   ],
 };
 
@@ -381,12 +382,20 @@ export const SAO_XAU_SEED: ReportRow[] = [
 ];
 
 export const LIVESTREAM_SEED: ReportRow[] = [
+  // Ngày 13/07
   { id: "l-1", employeeId: "live-thu", date: "2026-07-13", values: { sessions: 2, hours: 4.5, buyers: 120, revenue: 5_000_000 } },
   { id: "l-2", employeeId: "live-thuy-mn", date: "2026-07-13", values: { sessions: 1, hours: 3, buyers: 80, revenue: 3_200_000 } },
   { id: "l-3", employeeId: "live-trang-mn", date: "2026-07-13", values: { sessions: 2, hours: 5, buyers: 140, revenue: 6_100_000 } },
   { id: "l-4", employeeId: "live-vy-mn", date: "2026-07-13", values: { sessions: 1, hours: 2.5, buyers: 45, revenue: 1_800_000 } },
   { id: "l-5", employeeId: "live-thuy", date: "2026-07-13", values: { sessions: 2, hours: 4, buyers: 95, revenue: 4_300_000 } },
   { id: "l-6", employeeId: "live-binh", date: "2026-07-13", values: { sessions: 1, hours: 3.5, buyers: 70, revenue: 2_900_000 } },
+  // Ngày 12/07
+  { id: "l-7", employeeId: "live-thu", date: "2026-07-12", values: { sessions: 1, hours: 3.5, buyers: 95, revenue: 4_100_000 } },
+  { id: "l-8", employeeId: "live-thuy-mn", date: "2026-07-12", values: { sessions: 2, hours: 4, buyers: 110, revenue: 4_600_000 } },
+  { id: "l-9", employeeId: "live-trang-mn", date: "2026-07-12", values: { sessions: 1, hours: 3, buyers: 88, revenue: 3_500_000 } },
+  { id: "l-10", employeeId: "live-vy-mn", date: "2026-07-12", values: { sessions: 1, hours: 2, buyers: 38, revenue: 1_400_000 } },
+  { id: "l-11", employeeId: "live-thuy", date: "2026-07-12", values: { sessions: 2, hours: 4.5, buyers: 105, revenue: 4_800_000 } },
+  { id: "l-12", employeeId: "live-binh", date: "2026-07-12", values: { sessions: 1, hours: 3, buyers: 60, revenue: 2_400_000 } },
 ];
 
 export const MKT_SEED: ReportRow[] = [

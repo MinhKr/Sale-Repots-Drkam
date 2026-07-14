@@ -23,6 +23,12 @@ import { formatCompactVnd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const ASSIGNEES = [...new Set(WHOLESALE_SEED.map((c) => c.assignedTo))];
+const FILTER_ITEMS: Record<string, string> = {
+  all: "Tất cả phụ trách",
+  ...Object.fromEntries(
+    ASSIGNEES.map((id) => [id, getEmployee(id)?.name ?? id]),
+  ),
+};
 
 export function PipelineBoard() {
   const [customers, setCustomers] = useState<WholesaleCustomer[]>(WHOLESALE_SEED);
@@ -90,7 +96,11 @@ export function PipelineBoard() {
             đã chốt {formatCompactVnd(wonValue)}
           </p>
         </div>
-        <Select value={filter} onValueChange={(v) => setFilter(v ?? "all")}>
+        <Select
+          value={filter}
+          onValueChange={(v) => setFilter(v ?? "all")}
+          items={FILTER_ITEMS}
+        >
           <SelectTrigger className="w-52">
             <SelectValue />
           </SelectTrigger>
