@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ClipboardPaste, Trash2, Users } from "lucide-react";
+import { ClipboardPaste, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -68,8 +68,13 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
   }
 
   function openBulk() {
-    setDate(TODAY_ISO);
-    setVals(prefillFor(TODAY_ISO));
+    openBulkFor(TODAY_ISO);
+  }
+
+  /** Mở dialog bulk tại 1 ngày cụ thể, prefill sẵn — dùng cho nút Sửa mỗi dòng. */
+  function openBulkFor(d: string) {
+    setDate(d);
+    setVals(prefillFor(d));
     setPaste("");
     setOpen(true);
   }
@@ -159,11 +164,11 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Báo cáo Livestream"
-        description={`${rows.length} báo cáo · Lead nhập hộ 6 nhân viên`}
+        description={`${rows.length} báo cáo · Lead nhập hộ ${STAFF.length} nhân viên`}
         action={
           <Button onClick={openBulk}>
             <Users className="size-4" />
-            Nhập bulk 6 dòng
+            Nhập bulk {STAFF.length} dòng
           </Button>
         }
       />
@@ -179,7 +184,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                     {m.label}
                   </TableHead>
                 ))}
-                <TableHead className="w-16 text-right">Thao tác</TableHead>
+                <TableHead className="w-24 text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -220,7 +225,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                                   {emp?.initials}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="font-medium">{emp?.name}</span>
+                              <span className="font-medium">{emp?.shortName}</span>
                             </div>
                           </TableCell>
                           {config.tableMetrics.map((m) => (
@@ -232,15 +237,25 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                             </TableCell>
                           ))}
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
-                              title="Xóa báo cáo"
-                              onClick={() => handleDelete(row)}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Sửa báo cáo"
+                                onClick={() => openBulkFor(row.date)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                                title="Xóa báo cáo"
+                                onClick={() => handleDelete(row)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -257,7 +272,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
         <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="font-heading">
-              Nhập báo cáo Livestream — 6 nhân viên
+              Nhập báo cáo Livestream — {STAFF.length} nhân viên
             </DialogTitle>
             <DialogDescription>
               Nhập cùng lúc cho cả ca. Ô{" "}
@@ -277,7 +292,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
               />
             </div>
 
-            {/* Bảng nhập 6 dòng */}
+            {/* Bảng nhập bulk — 1 dòng / nhân viên Livestream */}
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
@@ -295,7 +310,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                   {STAFF.map((s) => (
                     <tr key={s.id} className="border-b last:border-0">
                       <td className="whitespace-nowrap p-2 font-medium">
-                        {s.name}
+                        {s.shortName}
                       </td>
                       {FIELDS.map((f) => (
                         <td key={f.key} className="p-1.5">
@@ -348,7 +363,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
               Huỷ
             </Button>
             <Button type="button" onClick={save}>
-              Lưu 6 báo cáo
+              Lưu {STAFF.length} báo cáo
             </Button>
           </DialogFooter>
         </DialogContent>

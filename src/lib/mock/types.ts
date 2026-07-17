@@ -13,7 +13,10 @@ export type Role = "STAFF" | "LEAD";
 
 export interface Employee {
   id: string;
+  /** Họ tên đầy đủ — dùng cho hồ sơ, xuất báo cáo */
   name: string;
+  /** Tên gọi ngắn, phân biệt được — dùng cho bảng/dashboard (vd "Phượng Sale") */
+  shortName: string;
   dept: DeptCode;
   role: Role;
   /** Chữ cái viết tắt cho Avatar fallback */

@@ -20,6 +20,7 @@ export const KPI_DEFAULT_TARGETS: Record<string, number> = {
   "live-vy-mn": 90_000_000,
   "live-thuy": 90_000_000,
   "live-binh": 90_000_000,
+  "live-dieu-linh": 90_000_000,
   "mkt-ha": 60_000_000,
 };
 

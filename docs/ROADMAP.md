@@ -9,17 +9,31 @@
 3. Chốt design ✅ (Phiên 6) rồi **mới** sang Giai đoạn 2 đổ dữ liệu thật.
 4. **Theme màu ĐỎ DrKam** (`#D32027`) — xem `docs/design-tokens.md`, không dùng xanh dương của kế hoạch cũ.
 
-## 👥 Nhân sự thật (dùng cho mock data)
+## 👥 Nhân sự thật — 13 người (PM chốt 2026-07-16)
 
-| Bộ phận (code) | SL | Tên nhân viên |
-|---|---|---|
-| Sale (`SALE`) | 1 | Phượng |
-| CSKH (`CSKH`) | 3 | Phương, Chinh, Hương |
-| Livestream (`LIVESTREAM`) | 6 | Thư, Thúy MN, Trang MN, Vy MN, Thủy, Bình |
-| MKT (`MKT`) | 1 | Nguyễn Thị Hà |
-| Lead / BGĐ | 1 | Lê Hoài Ly |
+| Bộ phận | Họ tên đầy đủ | Tên hiển thị | Ghi chú |
+|---|---|---|---|
+| `SALE` | Trần Thị Hoài Phượng | Phượng Sale | |
+| `CSKH` | Nguyễn Thu Phương | Phương CSKH | |
+| `CSKH` | Nguyễn Thị Chinh | Chinh | |
+| `CSKH` | Nguyễn Thi Hương | Hương | kiêm admin — PM chốt vẫn thuộc CSKH |
+| `LIVESTREAM` | Bàn Minh Thư | Thư | fulltime MB |
+| `LIVESTREAM` | Nguyễn Thu Thủy | Thủy MB | parttime MB |
+| `LIVESTREAM` | Trần Thị Bình | Bình | parttime MB |
+| `LIVESTREAM` | Trần Thị Diệu Linh | Diệu Linh | parttime MB |
+| `LIVESTREAM` | Nguyễn Thị Thanh Thúy | Thanh Thúy MN | fulltime MN |
+| `LIVESTREAM` | Trần Thanh Vy | Vy MN | parttime MN |
+| `LIVESTREAM` | Trần Thị Thu Trang | Trang MN | parttime MN |
+| `MKT` | Nguyễn Thị Hà | Hà | marketing ads |
+| `LEAD` | Lê Hoài Ly | Ly | Leader / BGĐ |
+
+**Tổng:** Sale 1 · CSKH 3 · Livestream **7** · MKT 1 · Lead 1.
 
 > CSKH có thể nhập cả tab **Sao Xấu**. Livestream + MKT do **Lead nhập hộ**.
+>
+> **Tên hiển thị** (`short_name`) có hậu tố phân biệt vì dễ nhầm: *Phượng* (Sale) vs *Phương* (CSKH); *Thủy MB* (Nguyễn Thu Thủy) vs *Thanh Thúy MN* (Nguyễn Thị Thanh Thúy). Bảng/dashboard dùng tên hiển thị; hồ sơ cá nhân + user menu dùng họ tên đầy đủ.
+>
+> Thông tin **fulltime/parttime + miền** hiện **không lưu DB** (PM chốt chưa cần) — chỉ ghi chú ở đây.
 
 ---
 
@@ -74,3 +88,23 @@
 - [x] **P4 — Dashboard cá nhân + Pipeline khách sỉ** (Dashboard cá nhân: chọn NV → stat tiles + LineChart Recharts 14 ngày; Pipeline: kanban 5 giai đoạn, kéo-thả đổi trạng thái (native DnD), filter theo NV, dialog chi tiết + timeline log liên hệ + thêm log)
 - [~] **P5 — Cấu hình KPI** ✅ (form mục tiêu theo tháng cho 4 bộ phận + 11 NV, ngưỡng cảnh báo, sao chép tháng trước, tổng mục tiêu team) · **Xuất báo cáo: TẠM HOÃN** (theo yêu cầu — vẫn là placeholder)
 - [~] **P6 — Rà soát + polish** ✅ (PageHeader dùng chung cho 10 màn, chuẩn container max-w-6xl/space-y-6 (KPI form max-w-3xl), nhãn placeholder Xuất báo cáo về "giai đoạn sau") · **CHỜ PM DUYỆT DESIGN** để mở khóa Giai đoạn 2
+- [x] **P7 — Supabase + Drizzle schema + seed** ✅ (2026-07-16)
+  - Supabase project (region Singapore), kết nối qua **Session pooler** (mạng không có IPv6 nên Direct Connection không dùng được)
+  - **9 bảng**: `employees` · 5 bảng báo cáo (`reports_sale/cskh/bad_review/livestream/marketing`) · `kpi_config` · `wholesale_customers` + `wholesale_contact_logs`
+  - Quyết định schema: **bảng riêng, cột số rõ ràng** (không JSONB) · **lưu cả ô nhập lẫn ô tự tính** · `employees.id` = uuid + cột `code` (slug) để map mock · tiền = `bigint`, % = `numeric(7,4)` lưu tỉ lệ 0..1 · `unique(employee_id, report_date)` mỗi bảng báo cáo
+  - Migration versioned (`drizzle/`), seed idempotent (`npm run db:seed`) đọc thẳng từ `src/lib/mock/`, tính lại ô tự tính bằng `computeMetrics()`
+  - Verify: tổng DT Livestream 13/07 = 23.300.000 khớp UI · tồn sao xấu lũy kế = 12 · ô tự tính Sale khớp công thức
+  - ✅ Đã có danh sách nhân sự thật 13 người (xem bảng trên) — seed lại xong
+- [x] **P8 — Auth thật + RLS** ✅ (2026-07-16)
+  - **1 tài khoản dùng chung** `sale@drkam.vn` (PM chốt) — quyền xem/sửa tất cả như Lead
+  - `@supabase/ssr` + client helper cho 3 môi trường (browser / server / middleware)
+  - Middleware chặn route (dùng `getUser()`, **không** dùng `getSession()` vì getSession chỉ đọc cookie → giả mạo được)
+  - Login page nối auth thật · nút Đăng xuất xóa phiên · lỗi đăng nhập không tiết lộ sai email hay sai mật khẩu
+  - **RLS bật cho cả 9 bảng** (`drizzle/0002_enable_rls.sql`): `authenticated` = toàn quyền · `anon` = không policy ⇒ cấm sạch
+  - Verify: anon đọc → **0 dòng**, anon ghi → **401 RLS violation**, đăng nhập rồi → đọc đủ, đăng xuất → 0 dòng lại
+
+  **🔴 2 việc BẮT BUỘC không được quên:**
+  1. **P9:** kết nối Drizzle dùng user `postgres` (chủ bảng) nên **BỎ QUA RLS**. Mỗi Server Action **phải tự kiểm tra phiên đăng nhập** — quên là lỗ hổng quay lại nguyên vẹn.
+  2. **P13 (chặn deploy):** đổi mật khẩu tài khoản chung trước khi lên domain thật. Vì là 1 tài khoản + toàn quyền, **mật khẩu là thứ DUY NHẤT** bảo vệ toàn bộ dữ liệu.
+
+  **Nợ kỹ thuật:** `employees.auth_user_id` hiện để trống (tài khoản chung không ứng với 1 nhân viên cụ thể) — cột đã sẵn sàng cho khi tách tài khoản riêng. UI vẫn dùng `CURRENT_USER` mock (hiện hiện tên "Ly") → P9/P10 sẽ thay bằng phiên thật.

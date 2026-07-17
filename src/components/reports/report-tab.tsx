@@ -217,7 +217,7 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
                               {emp?.initials}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{emp?.name}</span>
+                          <span className="font-medium">{emp?.shortName}</span>
                         </div>
                       </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">

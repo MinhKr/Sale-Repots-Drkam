@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ChevronDown, LogOut, RotateCcw, UserCog } from "lucide-react";
 import { clearAllLocalData } from "@/lib/use-local-storage-state";
+import { createClient } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -56,7 +57,12 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          onClick={() => router.push("/login")}
+          onClick={async () => {
+            // Xóa phiên ở cả trình duyệt lẫn cookie server, rồi mới rời trang.
+            await createClient().auth.signOut();
+            router.push("/login");
+            router.refresh();
+          }}
         >
           <LogOut className="size-4" />
           Đăng xuất

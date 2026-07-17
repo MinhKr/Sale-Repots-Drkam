@@ -45,7 +45,11 @@ yarn-error.log*
 *.tsbuildinfo
 
 # Drizzle
-/drizzle/meta
+# LƯU Ý: KHÔNG ignore /drizzle — toàn bộ thư mục này là lịch sử schema và PHẢI commit:
+#   - *.sql            : nội dung migration
+#   - meta/_journal.json: db:migrate dựa vào đây để biết migration nào đã chạy
+#   - meta/*_snapshot.json: db:generate dựa vào đây để tính diff cho migration kế tiếp
+# Ignore chúng sẽ làm hỏng migration trên máy khác / lúc deploy.
 
 # IDE / OS
 .idea
