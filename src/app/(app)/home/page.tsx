@@ -23,7 +23,7 @@ export default function HomePage() {
       {/* Lời chào */}
       <div>
         <h2 className="font-heading text-xl font-bold sm:text-2xl">
-          Chào {CURRENT_USER.name} 👋
+          Chào {CURRENT_USER.shortName} 👋
         </h2>
         <p className="text-sm text-muted-foreground">
           Tổng quan hoạt động phòng Sale · tháng 07/2026

@@ -157,7 +157,7 @@ export function KpiConfig() {
                   key={e.id}
                   className="flex items-center justify-between gap-3"
                 >
-                  <span className="text-sm font-medium">{e.name}</span>
+                  <span className="text-sm font-medium">{e.shortName}</span>
                   <div className="flex items-center gap-2">
                     <MoneyInput
                       value={targets[e.id] ?? 0}

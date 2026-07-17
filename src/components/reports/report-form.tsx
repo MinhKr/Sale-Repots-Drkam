@@ -42,7 +42,7 @@ export function ReportForm({
     [config],
   );
   const employeeItems = useMemo(
-    () => Object.fromEntries(employees.map((e) => [e.id, e.name])),
+    () => Object.fromEntries(employees.map((e) => [e.id, e.shortName])),
     [employees],
   );
 
@@ -102,7 +102,7 @@ export function ReportForm({
             <SelectContent>
               {employees.map((e) => (
                 <SelectItem key={e.id} value={e.id}>
-                  {e.name}
+                  {e.shortName}
                 </SelectItem>
               ))}
             </SelectContent>

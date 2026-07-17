@@ -28,7 +28,7 @@ const ASSIGNEES = [...new Set(WHOLESALE_SEED.map((c) => c.assignedTo))];
 const FILTER_ITEMS: Record<string, string> = {
   all: "Tất cả phụ trách",
   ...Object.fromEntries(
-    ASSIGNEES.map((id) => [id, getEmployee(id)?.name ?? id]),
+    ASSIGNEES.map((id) => [id, getEmployee(id)?.shortName ?? id]),
   ),
 };
 
@@ -106,7 +106,7 @@ export function PipelineBoard() {
               <SelectItem value="all">Tất cả phụ trách</SelectItem>
               {ASSIGNEES.map((id) => (
                 <SelectItem key={id} value={id}>
-                  {getEmployee(id)?.name}
+                  {getEmployee(id)?.shortName}
                 </SelectItem>
               ))}
             </SelectContent>

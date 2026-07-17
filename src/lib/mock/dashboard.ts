@@ -54,6 +54,8 @@ const REVENUE_BY_EMP: Array<[string, number, number]> = [
   ["live-vy-mn", 41_700_000, 90_000_000],
   ["live-thuy", 79_600_000, 90_000_000],
   ["live-binh", 0, 90_000_000],
+  // Diệu Linh: NV mới, chưa có số liệu — để trống tới khi nhập thật (badge "Chưa nhập")
+  ["live-dieu-linh", 0, 90_000_000],
   ["mkt-ha", 63_300_000, 60_000_000],
 ];
 
@@ -98,7 +100,7 @@ export const RANKING: RankRow[] = REVENUE_BY_EMP.map(([employeeId, revenue, targ
   return {
     rank: 0,
     employeeId,
-    name: emp.name,
+    name: emp.shortName,
     dept: emp.dept,
     revenue,
     target,
