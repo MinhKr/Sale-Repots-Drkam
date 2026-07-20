@@ -7,34 +7,46 @@ import {
 } from "@/components/ui/card";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { MonthTargetCard } from "@/components/dashboard/month-target-card";
+import { MonthFilter } from "@/components/dashboard/month-filter";
 import { RevenueTrendChart } from "@/components/dashboard/revenue-trend-chart";
 import { TeamLeaderboard } from "@/components/dashboard/team-leaderboard";
-import { CURRENT_USER } from "@/lib/mock/employees";
-import { TEAM_SUMMARY } from "@/lib/mock/dashboard";
+import { getTeamDashboard } from "@/lib/dashboard/queries";
 import { formatCompactVnd, formatDelta } from "@/lib/format";
 
 export const metadata = { title: "Trang chủ" };
+// Dashboard đọc doanh thu thật theo request — không prerender tĩnh.
+export const dynamic = "force-dynamic";
 
-const { homQua, tuanNay, thangNay, mucTieuThang } = TEAM_SUMMARY;
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const { month: monthParam } = await searchParams;
+  const { summary, revenue14d, ranking, availableMonths, month, monthLabel } =
+    await getTeamDashboard(monthParam);
+  const { homQua, tuanNay, thangNay, mucTieuThang } = summary;
 
-export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Lời chào */}
-      <div>
-        <h2 className="font-heading text-xl font-bold sm:text-2xl">
-          Chào {CURRENT_USER.shortName} 👋
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Tổng quan hoạt động phòng Sale · tháng 07/2026
-        </p>
+      {/* Lời chào + lọc tháng */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-xl font-bold sm:text-2xl">
+            Chào Phòng Sale 👋
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Tổng quan hoạt động phòng Sale · {monthLabel || "chưa có dữ liệu"}
+          </p>
+        </div>
+        <MonthFilter months={availableMonths} value={month} />
       </div>
 
       {/* Tiến độ mục tiêu tháng — nổi bật, full-width, trên cùng */}
       <MonthTargetCard
         achieved={thangNay.value}
         target={mucTieuThang}
-        period="tháng 07/2026"
+        period={monthLabel}
       />
 
       {/* 3 KPI doanh thu */}
@@ -80,7 +92,7 @@ export default function HomePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <RevenueTrendChart />
+          <RevenueTrendChart data={revenue14d} />
         </CardContent>
       </Card>
 
@@ -92,7 +104,7 @@ export default function HomePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TeamLeaderboard />
+          <TeamLeaderboard ranking={ranking} />
         </CardContent>
       </Card>
     </div>

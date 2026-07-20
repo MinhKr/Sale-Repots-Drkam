@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +22,15 @@ import {
 } from "@/lib/mock/reports";
 import { EMPLOYEES } from "@/lib/mock/employees";
 import { formatMetric } from "@/lib/format";
+import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
 
 interface ReportFormProps {
   config: ReportConfig;
   /** null = tạo mới; có giá trị = sửa */
   initial: ReportRow | null;
+  /** đang lưu xuống server — khóa nút để tránh double submit */
+  pending?: boolean;
   onSubmit: (row: ReportRow) => void;
   onCancel: () => void;
 }
@@ -34,6 +38,7 @@ interface ReportFormProps {
 export function ReportForm({
   config,
   initial,
+  pending,
   onSubmit,
   onCancel,
 }: ReportFormProps) {
@@ -138,17 +143,28 @@ export function ReportForm({
                     <span className="text-muted-foreground"> (giờ)</span>
                   )}
                 </Label>
-                <input
-                  id={`f-${f.key}`}
-                  type="number"
-                  min={0}
-                  step={f.kind === "float" ? 0.5 : 1}
-                  inputMode={f.kind === "float" ? "decimal" : "numeric"}
-                  className="cell-input w-full text-sm"
-                  value={values[f.key] === 0 ? "" : values[f.key]}
-                  placeholder="0"
-                  onChange={(e) => setValue(f.key, e.target.value)}
-                />
+                {f.kind === "float" ? (
+                  <input
+                    id={`f-${f.key}`}
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    inputMode="decimal"
+                    className="cell-input w-full text-sm"
+                    value={values[f.key] === 0 ? "" : values[f.key]}
+                    placeholder="0"
+                    onChange={(e) => setValue(f.key, e.target.value)}
+                  />
+                ) : (
+                  <MoneyInput
+                    id={`f-${f.key}`}
+                    value={values[f.key]}
+                    onValueChange={(n) =>
+                      setValues((prev) => ({ ...prev, [f.key]: n }))
+                    }
+                    className="cell-input w-full text-sm"
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -191,10 +207,18 @@ export function ReportForm({
       </div>
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={pending}
+        >
           Huỷ
         </Button>
-        <Button type="submit">{initial ? "Cập nhật" : "Lưu báo cáo"}</Button>
+        <Button type="submit" disabled={pending}>
+          {pending && <Loader2 className="size-4 animate-spin" />}
+          {initial ? "Cập nhật" : "Lưu báo cáo"}
+        </Button>
       </DialogFooter>
     </form>
   );

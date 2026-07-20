@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RANKING } from "@/lib/mock/dashboard";
+import type { RankRow } from "@/lib/mock/types";
 import { DEPT_LABEL, getEmployee } from "@/lib/mock/employees";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-export function TeamLeaderboard() {
+export function TeamLeaderboard({ ranking }: { ranking: RankRow[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -46,7 +46,7 @@ export function TeamLeaderboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {RANKING.map((row) => {
+          {ranking.map((row) => {
             const emp = getEmployee(row.employeeId);
             const pct = Math.min(row.progress, 1) * 100;
             return (

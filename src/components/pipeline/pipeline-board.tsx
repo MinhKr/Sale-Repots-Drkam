@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -12,36 +12,43 @@ import {
 } from "@/components/ui/select";
 import { CustomerDetailDialog } from "./customer-detail-dialog";
 import { PageHeader } from "@/components/page-header";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
 import {
   STAGES,
-  WHOLESALE_SEED,
   type ContactChannel,
   type WholesaleCustomer,
   type WholesaleStage,
 } from "@/lib/mock/wholesale";
+import { addContactLog, setStage } from "@/lib/wholesale/actions";
 import { getEmployee } from "@/lib/mock/employees";
 import { formatCompactVnd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const ASSIGNEES = [...new Set(WHOLESALE_SEED.map((c) => c.assignedTo))];
-const FILTER_ITEMS: Record<string, string> = {
-  all: "Tất cả phụ trách",
-  ...Object.fromEntries(
-    ASSIGNEES.map((id) => [id, getEmployee(id)?.shortName ?? id]),
-  ),
-};
-
-export function PipelineBoard() {
-  const [customers, setCustomers] = useLocalStorageState<WholesaleCustomer[]>(
-    "wholesale",
-    WHOLESALE_SEED,
-  );
+export function PipelineBoard({
+  initialCustomers,
+}: {
+  initialCustomers: WholesaleCustomer[];
+}) {
+  const [customers, setCustomers] =
+    useState<WholesaleCustomer[]>(initialCustomers);
   const [filter, setFilter] = useState<string>("all");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<WholesaleStage | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [logSeq, setLogSeq] = useState(1);
+  const [, startTransition] = useTransition();
+
+  const assignees = useMemo(
+    () => [...new Set(customers.map((c) => c.assignedTo))],
+    [customers],
+  );
+  const filterItems = useMemo<Record<string, string>>(
+    () => ({
+      all: "Tất cả phụ trách",
+      ...Object.fromEntries(
+        assignees.map((id) => [id, getEmployee(id)?.shortName ?? id]),
+      ),
+    }),
+    [assignees],
+  );
 
   const visible =
     filter === "all"
@@ -58,34 +65,40 @@ export function PipelineBoard() {
   function moveTo(id: string, stage: WholesaleStage) {
     const c = customers.find((x) => x.id === id);
     if (!c || c.stage === stage) return;
+    const prevStage = c.stage;
     setCustomers((prev) =>
       prev.map((x) => (x.id === id ? { ...x, stage } : x)),
     );
     const stageLabel = STAGES.find((s) => s.key === stage)?.label;
-    toast.success(`Chuyển "${c.company}" → ${stageLabel}`);
+    startTransition(async () => {
+      try {
+        await setStage(id, stage);
+        toast.success(`Chuyển "${c.company}" → ${stageLabel}`);
+      } catch (err) {
+        console.error(err);
+        setCustomers((prev) =>
+          prev.map((x) => (x.id === id ? { ...x, stage: prevStage } : x)),
+        );
+        toast.error("Đổi giai đoạn thất bại.");
+      }
+    });
   }
 
   function addLog(customerId: string, channel: ContactChannel, note: string) {
-    setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === customerId
-          ? {
-              ...c,
-              logs: [
-                ...c.logs,
-                {
-                  id: `log-${customerId}-${logSeq}`,
-                  date: "2026-07-13",
-                  channel,
-                  note,
-                },
-              ],
-            }
-          : c,
-      ),
-    );
-    setLogSeq((s) => s + 1);
-    toast.success("Đã thêm log liên hệ");
+    startTransition(async () => {
+      try {
+        const log = await addContactLog(customerId, channel, note);
+        setCustomers((prev) =>
+          prev.map((c) =>
+            c.id === customerId ? { ...c, logs: [...c.logs, log] } : c,
+          ),
+        );
+        toast.success("Đã thêm log liên hệ");
+      } catch (err) {
+        console.error(err);
+        toast.error("Thêm log thất bại.");
+      }
+    });
   }
 
   return (
@@ -97,14 +110,14 @@ export function PipelineBoard() {
           <Select
             value={filter}
             onValueChange={(v) => setFilter(v ?? "all")}
-            items={FILTER_ITEMS}
+            items={filterItems}
           >
             <SelectTrigger className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả phụ trách</SelectItem>
-              {ASSIGNEES.map((id) => (
+              {assignees.map((id) => (
                 <SelectItem key={id} value={id}>
                   {getEmployee(id)?.shortName}
                 </SelectItem>

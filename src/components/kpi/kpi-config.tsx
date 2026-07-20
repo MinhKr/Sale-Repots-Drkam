@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, Save, TriangleAlert } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Copy, Loader2, Save, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,47 +19,74 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  KPI_DEFAULT_TARGETS,
   KPI_DEFAULT_WARNING,
   KPI_DEPTS,
-  KPI_PREV_MONTH_TARGETS,
   MONTHS,
   YEARS,
 } from "@/lib/mock/kpi";
+import type { MonthKpi } from "@/lib/kpi/queries";
+import { saveKpiConfig } from "@/lib/kpi/actions";
 import { MoneyInput } from "@/components/money-input";
 import { PageHeader } from "@/components/page-header";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
 import { DEPT_LABEL, employeesByDept } from "@/lib/mock/employees";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
-export function KpiConfig() {
+const monthKey = (y: number, m: number) => `${y}-${m}`;
+const emptyKpi = (): MonthKpi => ({ targets: {}, warning: KPI_DEFAULT_WARNING });
+
+export function KpiConfig({ configs }: { configs: Record<string, MonthKpi> }) {
   const [month, setMonth] = useState(7);
   const [year, setYear] = useState(2026);
-  const [warning, setWarning] = useLocalStorageState(
-    "kpi:warning",
-    KPI_DEFAULT_WARNING,
-  );
-  const [targets, setTargets] = useLocalStorageState<Record<string, number>>(
-    "kpi:targets",
-    { ...KPI_DEFAULT_TARGETS },
-  );
+  // Bản chỉnh sửa cục bộ theo từng tháng (ghi đè lên configs từ server).
+  const [edited, setEdited] = useState<Record<string, MonthKpi>>({});
+  const [saving, startSaving] = useTransition();
+
+  const key = monthKey(year, month);
+  const current: MonthKpi = edited[key] ?? configs[key] ?? emptyKpi();
+  const targets = current.targets;
+  const warning = current.warning;
 
   const teamTotal = Object.values(targets).reduce((s, v) => s + v, 0);
 
+  function patch(next: Partial<MonthKpi>) {
+    setEdited((prev) => ({ ...prev, [key]: { ...current, ...next } }));
+  }
+  function setWarning(w: number) {
+    patch({ warning: w });
+  }
+  function setTarget(code: string, n: number) {
+    patch({ targets: { ...targets, [code]: n } });
+  }
+
   function copyPrev() {
-    setTargets({ ...KPI_PREV_MONTH_TARGETS });
-    toast.success("Đã sao chép mục tiêu KPI tháng trước");
+    const pm = month === 1 ? 12 : month - 1;
+    const py = month === 1 ? year - 1 : year;
+    const prev = edited[monthKey(py, pm)] ?? configs[monthKey(py, pm)];
+    if (!prev) {
+      toast.error(`Chưa có cấu hình KPI tháng ${pm}/${py} để sao chép`);
+      return;
+    }
+    patch({ targets: { ...prev.targets } });
+    toast.success(`Đã sao chép mục tiêu KPI tháng ${pm}/${py}`);
   }
 
   function save() {
-    toast.success(`Đã lưu cấu hình KPI tháng ${month}/${year}`);
+    startSaving(async () => {
+      try {
+        await saveKpiConfig({ year, month, warning, targets });
+        toast.success(`Đã lưu cấu hình KPI tháng ${month}/${year}`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Lưu cấu hình KPI thất bại. Thử lại.");
+      }
+    });
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="Cấu hình KPI"
-        description="Đặt mục tiêu doanh thu tháng cho từng nhân viên · dữ liệu giả"
+        description="Đặt mục tiêu doanh thu tháng cho từng nhân viên"
         action={
           <>
             <Select
@@ -161,9 +188,7 @@ export function KpiConfig() {
                   <div className="flex items-center gap-2">
                     <MoneyInput
                       value={targets[e.id] ?? 0}
-                      onValueChange={(n) =>
-                        setTargets((prev) => ({ ...prev, [e.id]: n }))
-                      }
+                      onValueChange={(n) => setTarget(e.id, n)}
                       className="cell-input w-44 text-sm"
                     />
                     <span className="w-6 text-xs text-muted-foreground">₫</span>
@@ -183,8 +208,8 @@ export function KpiConfig() {
             {formatCurrency(teamTotal)}
           </p>
         </div>
-        <Button onClick={save}>
-          <Save className="size-4" />
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           Lưu cấu hình KPI
         </Button>
       </div>

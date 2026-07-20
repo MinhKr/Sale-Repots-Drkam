@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { ClipboardPaste, Pencil, Trash2, Users } from "lucide-react";
+import { Fragment, useState, useTransition } from "react";
+import { ClipboardPaste, Loader2, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,10 +30,20 @@ import {
   TODAY_ISO,
   type ReportRow,
 } from "@/lib/mock/reports";
-import { employeesByDept, getEmployee } from "@/lib/mock/employees";
+import {
+  employeesByDept,
+  getEmployee,
+  regionEmploymentLabel,
+} from "@/lib/mock/employees";
 import { formatCurrency, formatDateVn, formatMetric } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { MoneyInput } from "@/components/money-input";
+import { DateRangeFilter, useDateRange } from "./date-range-filter";
+import {
+  deleteReport,
+  saveLivestreamDay,
+  saveReport,
+} from "@/lib/reports/actions";
 
 const config = CONFIG_BY_TAB.LIVESTREAM;
 const STAFF = employeesByDept("LIVESTREAM");
@@ -48,14 +58,14 @@ function zeros(): ValMap {
 }
 
 export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
-  const [rows, setRows] = useLocalStorageState<ReportRow[]>(
-    "reports:LIVESTREAM",
-    initialRows,
-  );
+  const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(TODAY_ISO);
   const [vals, setVals] = useState<ValMap>(zeros);
   const [paste, setPaste] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [, startTransition] = useTransition();
+  const { range, setRange, active, inRange } = useDateRange();
 
   function prefillFor(d: string): ValMap {
     const base = zeros();
@@ -115,41 +125,69 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     toast.success(`Đã dán ${filled} dòng`);
   }
 
-  function save() {
-    setRows((prev) => {
-      const kept = prev.filter((r) => r.date !== date);
-      const dayRows: ReportRow[] = [];
-      for (const s of STAFF) {
-        const v = vals[s.id];
-        const hasData = FIELDS.some((f) => (v[f.key] ?? 0) > 0);
-        if (hasData) {
-          dayRows.push({
-            id: `live-${date}-${s.id}`,
-            employeeId: s.id,
-            date,
-            values: { ...v },
-          });
-        }
-      }
-      return [...dayRows, ...kept];
-    });
-    setOpen(false);
-    toast.success("Đã lưu báo cáo Livestream");
+  async function save() {
+    const entries = STAFF.map((s) => ({
+      employeeCode: s.id,
+      values: { ...vals[s.id] },
+    }));
+    setSaving(true);
+    try {
+      const fresh = await saveLivestreamDay(date, entries);
+      setRows(fresh);
+      setOpen(false);
+      toast.success("Đã lưu báo cáo Livestream");
+    } catch (err) {
+      console.error(err);
+      toast.error("Lưu báo cáo thất bại. Thử lại.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleDelete(row: ReportRow) {
+    const prevRows = rows;
     setRows((prev) => prev.filter((r) => r.id !== row.id));
-    toast.success("Đã xóa báo cáo", {
-      action: {
-        label: "Hoàn tác",
-        onClick: () => setRows((prev) => [row, ...prev]),
-      },
+    startTransition(async () => {
+      try {
+        await deleteReport("LIVESTREAM", row.id);
+        toast.success("Đã xóa báo cáo", {
+          action: {
+            label: "Hoàn tác",
+            onClick: () => {
+              startTransition(async () => {
+                try {
+                  const saved = await saveReport("LIVESTREAM", {
+                    employeeCode: row.employeeId,
+                    date: row.date,
+                    values: row.values,
+                    note: row.note,
+                  });
+                  setRows((prev) => [
+                    saved,
+                    ...prev.filter((r) => r.id !== saved.id),
+                  ]);
+                } catch {
+                  toast.error("Hoàn tác thất bại.");
+                }
+              });
+            },
+          },
+        });
+      } catch (err) {
+        console.error(err);
+        setRows(prevRows);
+        toast.error("Xóa báo cáo thất bại.");
+      }
     });
   }
 
-  const sorted = [...rows].sort(
-    (a, b) => b.date.localeCompare(a.date) || a.employeeId.localeCompare(b.employeeId),
-  );
+  const sorted = [...rows]
+    .filter((r) => inRange(r.date))
+    .sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) ||
+        a.employeeId.localeCompare(b.employeeId),
+    );
 
   // Gom nhóm theo ngày (giữ thứ tự đã sort)
   const groups: { date: string; items: ReportRow[] }[] = [];
@@ -164,7 +202,11 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Báo cáo Livestream"
-        description={`${rows.length} báo cáo · Lead nhập hộ ${STAFF.length} nhân viên`}
+        description={
+          active
+            ? `${sorted.length} / ${rows.length} báo cáo (đang lọc)`
+            : `${rows.length} báo cáo · Lead nhập hộ ${STAFF.length} nhân viên`
+        }
         action={
           <Button onClick={openBulk}>
             <Users className="size-4" />
@@ -172,6 +214,8 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
           </Button>
         }
       />
+
+      <DateRangeFilter range={range} setRange={setRange} active={active} />
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -225,7 +269,16 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                                   {emp?.initials}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="font-medium">{emp?.shortName}</span>
+                              <div className="leading-tight">
+                                <span className="font-medium">
+                                  {emp?.shortName}
+                                </span>
+                                {emp && regionEmploymentLabel(emp) && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {regionEmploymentLabel(emp)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           {config.tableMetrics.map((m) => (
@@ -263,6 +316,18 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                   </Fragment>
                 );
               })}
+              {groups.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={colSpan}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    {active
+                      ? "Không có báo cáo nào trong khoảng ngày đã chọn."
+                      : "Chưa có báo cáo nào."}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -309,20 +374,40 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                 <tbody>
                   {STAFF.map((s) => (
                     <tr key={s.id} className="border-b last:border-0">
-                      <td className="whitespace-nowrap p-2 font-medium">
-                        {s.shortName}
+                      <td className="whitespace-nowrap p-2">
+                        <span className="font-medium">{s.shortName}</span>
+                        {regionEmploymentLabel(s) && (
+                          <span className="ml-1.5 text-xs text-muted-foreground">
+                            ({regionEmploymentLabel(s)})
+                          </span>
+                        )}
                       </td>
                       {FIELDS.map((f) => (
                         <td key={f.key} className="p-1.5">
-                          <input
-                            type="number"
-                            min={0}
-                            step={f.kind === "float" ? 0.5 : 1}
-                            className="cell-input w-full text-sm"
-                            value={vals[s.id][f.key] === 0 ? "" : vals[s.id][f.key]}
-                            placeholder="0"
-                            onChange={(e) => setCell(s.id, f.key, e.target.value)}
-                          />
+                          {f.kind === "float" ? (
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.5}
+                              inputMode="decimal"
+                              className="cell-input w-full text-sm"
+                              value={
+                                vals[s.id][f.key] === 0 ? "" : vals[s.id][f.key]
+                              }
+                              placeholder="0"
+                              onChange={(e) =>
+                                setCell(s.id, f.key, e.target.value)
+                              }
+                            />
+                          ) : (
+                            <MoneyInput
+                              value={vals[s.id][f.key]}
+                              onValueChange={(n) =>
+                                setCell(s.id, f.key, String(n))
+                              }
+                              className="cell-input w-full text-sm"
+                            />
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -359,10 +444,16 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={saving}
+            >
               Huỷ
             </Button>
-            <Button type="button" onClick={save}>
+            <Button type="button" onClick={save} disabled={saving}>
+              {saving && <Loader2 className="size-4 animate-spin" />}
               Lưu {STAFF.length} báo cáo
             </Button>
           </DialogFooter>
