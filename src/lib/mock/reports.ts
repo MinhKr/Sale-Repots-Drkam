@@ -122,8 +122,10 @@ export const CSKH_CONFIG: ReportConfig = {
   allowedDepts: ["CSKH", "ADMIN", "LEAD"],
   inputs: [
     { key: "messReceived", label: "Tin nhắn nhận", kind: "int", group: "Tương tác" },
-    { key: "messReplied", label: "Tin nhắn đã phản hồi", kind: "int", group: "Tương tác" },
-    { key: "careCalls", label: "Cuộc gọi chăm sóc", kind: "int", group: "Tương tác" },
+    { key: "messSent", label: "Tin nhắn gửi đi", kind: "int", group: "Tương tác" },
+    { key: "careCalls", label: "Cuộc gọi đi", kind: "int", group: "Tương tác" },
+    { key: "zaloNewFriends", label: "Kết bạn Zalo", kind: "int", group: "Tương tác" },
+    { key: "customerReplies", label: "Khách phản hồi", kind: "int", group: "Tương tác" },
     { key: "reorderCount", label: "Đơn tái mua", kind: "int", group: "Đơn hàng" },
     { key: "reorderRevenue", label: "DT tái mua", kind: "money", group: "Đơn hàng" },
     { key: "upsellCount", label: "Đơn upsell", kind: "int", group: "Đơn hàng" },
@@ -145,10 +147,11 @@ export const CSKH_CONFIG: ReportConfig = {
       compute: (v) => Math.round(ratio(v.tongDoanhThu, v.tongDon)),
     },
     {
+      // Hiệu quả tiếp cận chủ động: khách phản hồi / tổng lượt chủ động liên hệ
       key: "tiLePhanHoi",
       label: "Tỉ lệ phản hồi",
       kind: "percent",
-      compute: (v) => ratio(v.messReplied, v.messReceived),
+      compute: (v) => ratio(v.customerReplies, v.messSent + v.careCalls),
     },
   ],
   tableMetrics: [
@@ -335,26 +338,26 @@ export const CSKH_SEED: ReportRow[] = [
     id: "c-1",
     employeeId: "cskh-huong",
     date: "2026-07-13",
-    values: { messReceived: 88, messReplied: 85, careCalls: 31, reorderCount: 12, reorderRevenue: 16_800_000, upsellCount: 4, upsellRevenue: 6_300_000, complaintsResolved: 2 },
+    values: { messReceived: 88, messSent: 120, careCalls: 31, zaloNewFriends: 14, customerReplies: 85, reorderCount: 12, reorderRevenue: 16_800_000, upsellCount: 4, upsellRevenue: 6_300_000, complaintsResolved: 2 },
     note: "2 khiếu nại đổi hàng đã xử lý xong.",
   },
   {
     id: "c-2",
     employeeId: "cskh-phuong",
     date: "2026-07-13",
-    values: { messReceived: 74, messReplied: 66, careCalls: 22, reorderCount: 8, reorderRevenue: 10_400_000, upsellCount: 3, upsellRevenue: 4_100_000, complaintsResolved: 1 },
+    values: { messReceived: 74, messSent: 95, careCalls: 22, zaloNewFriends: 9, customerReplies: 66, reorderCount: 8, reorderRevenue: 10_400_000, upsellCount: 3, upsellRevenue: 4_100_000, complaintsResolved: 1 },
   },
   {
     id: "c-3",
     employeeId: "cskh-chinh",
     date: "2026-07-13",
-    values: { messReceived: 61, messReplied: 48, careCalls: 17, reorderCount: 5, reorderRevenue: 6_900_000, upsellCount: 1, upsellRevenue: 1_500_000, complaintsResolved: 0 },
+    values: { messReceived: 61, messSent: 78, careCalls: 17, zaloNewFriends: 6, customerReplies: 48, reorderCount: 5, reorderRevenue: 6_900_000, upsellCount: 1, upsellRevenue: 1_500_000, complaintsResolved: 0 },
   },
   {
     id: "c-4",
     employeeId: "cskh-huong",
     date: "2026-07-12",
-    values: { messReceived: 79, messReplied: 71, careCalls: 26, reorderCount: 10, reorderRevenue: 13_200_000, upsellCount: 2, upsellRevenue: 2_800_000, complaintsResolved: 1 },
+    values: { messReceived: 79, messSent: 102, careCalls: 26, zaloNewFriends: 11, customerReplies: 71, reorderCount: 10, reorderRevenue: 13_200_000, upsellCount: 2, upsellRevenue: 2_800_000, complaintsResolved: 1 },
   },
 ];
 
