@@ -5,8 +5,8 @@ import { pgEnum } from "drizzle-orm/pg-core";
  * Giữ đúng tên value để seed từ mock không phải map lại.
  */
 
-/** Bộ phận biên chế nhân sự */
-export const deptEnum = pgEnum("dept", ["SALE", "CSKH", "LIVESTREAM", "MKT", "LEAD"]);
+/** Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead) */
+export const deptEnum = pgEnum("dept", ["SALE", "CSKH", "LIVESTREAM", "MKT", "ADMIN", "LEAD"]);
 
 /** Vai trò */
 export const roleEnum = pgEnum("role", ["STAFF", "LEAD"]);

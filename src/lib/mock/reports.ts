@@ -72,7 +72,7 @@ const ratio = (a: number, b: number) => (b > 0 ? a / b : 0);
 export const SALE_CONFIG: ReportConfig = {
   tab: "SALE",
   title: "Sale",
-  allowedDepts: ["SALE", "CSKH", "LEAD"],
+  allowedDepts: ["SALE", "ADMIN", "LEAD"],
   inputs: [
     { key: "messReceived", label: "Tin nhắn nhận", kind: "int", group: "Tương tác" },
     { key: "messRead", label: "Tin nhắn đã rep", kind: "int", group: "Tương tác" },
@@ -119,7 +119,7 @@ export const SALE_CONFIG: ReportConfig = {
 export const CSKH_CONFIG: ReportConfig = {
   tab: "CSKH",
   title: "CSKH",
-  allowedDepts: ["CSKH", "LEAD"],
+  allowedDepts: ["CSKH", "ADMIN", "LEAD"],
   inputs: [
     { key: "messReceived", label: "Tin nhắn nhận", kind: "int", group: "Tương tác" },
     { key: "messReplied", label: "Tin nhắn đã phản hồi", kind: "int", group: "Tương tác" },
@@ -164,7 +164,7 @@ export const CSKH_CONFIG: ReportConfig = {
 export const SAO_XAU_CONFIG: ReportConfig = {
   tab: "SAO_XAU",
   title: "Sao Xấu",
-  allowedDepts: ["CSKH", "LEAD"],
+  allowedDepts: ["CSKH", "ADMIN", "LEAD"],
   inputs: [
     { key: "newBad", label: "Sao xấu mới", kind: "int", group: "Phát sinh" },
     { key: "resolved", label: "Đã xử lý / gỡ", kind: "int", group: "Phát sinh" },
@@ -200,7 +200,7 @@ export const SAO_XAU_CONFIG: ReportConfig = {
 export const LIVESTREAM_CONFIG: ReportConfig = {
   tab: "LIVESTREAM",
   title: "Livestream",
-  allowedDepts: ["LIVESTREAM", "LEAD"],
+  allowedDepts: ["LIVESTREAM", "ADMIN", "LEAD"],
   inputs: [
     { key: "sessions", label: "Số phiên", kind: "int", group: "Phiên live" },
     { key: "hours", label: "Số giờ live", kind: "float", group: "Phiên live" },
@@ -236,7 +236,7 @@ export const LIVESTREAM_CONFIG: ReportConfig = {
 export const MKT_CONFIG: ReportConfig = {
   tab: "MKT",
   title: "Marketing",
-  allowedDepts: ["MKT", "LEAD"],
+  allowedDepts: ["MKT", "ADMIN", "LEAD"],
   inputs: [
     { key: "adSpend", label: "Chi phí quảng cáo", kind: "money", group: "Chi phí" },
     { key: "reach", label: "Tiếp cận", kind: "int", group: "Hiệu quả" },
