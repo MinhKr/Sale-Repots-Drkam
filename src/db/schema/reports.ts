@@ -79,10 +79,15 @@ export const reportsCskh = pgTable(
     reportDate: date("report_date").notNull(),
 
     // --- Ô nhập tay ---
-    // Tương tác
+    // Tương tác (care_calls = "Cuộc gọi đi" — giữ tên cột cũ để không mất dữ liệu)
     messReceived: integer("mess_received").notNull().default(0),
-    messReplied: integer("mess_replied").notNull().default(0),
+    messSent: integer("mess_sent").notNull().default(0),
     careCalls: integer("care_calls").notNull().default(0),
+    zaloNewFriends: integer("zalo_new_friends").notNull().default(0),
+    customerReplies: integer("customer_replies").notNull().default(0),
+    /** @deprecated Bỏ khỏi form 2026-07-20 (trùng ý "Khách phản hồi").
+     *  GIỮ cột để không mất dữ liệu lịch sử; không còn được ghi ở bản mới. */
+    messReplied: integer("mess_replied").notNull().default(0),
     // Đơn hàng
     reorderCount: integer("reorder_count").notNull().default(0),
     reorderRevenue: money("reorder_revenue").notNull().default(0),

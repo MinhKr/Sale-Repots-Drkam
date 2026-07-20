@@ -29,6 +29,13 @@
       "when": 1784534822422,
       "tag": "0003_add_admin_dept",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784539641120,
+      "tag": "0004_cskh_outbound_metrics",
+      "breakpoints": true
     }
   ]
 }
