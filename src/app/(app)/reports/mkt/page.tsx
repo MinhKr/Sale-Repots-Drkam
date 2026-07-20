@@ -1,8 +1,11 @@
 import { ReportTab } from "@/components/reports/report-tab";
-import { MKT_SEED } from "@/lib/mock/reports";
+import { listReports } from "@/lib/reports/queries";
 
 export const metadata = { title: "Báo cáo Marketing" };
+// Luôn render theo request (dữ liệu báo cáo thật, không prerender tĩnh).
+export const dynamic = "force-dynamic";
 
-export default function MktReportPage() {
-  return <ReportTab tab="MKT" initialRows={MKT_SEED} />;
+export default async function MktReportPage() {
+  const rows = await listReports("MKT");
+  return <ReportTab tab="MKT" initialRows={rows} />;
 }

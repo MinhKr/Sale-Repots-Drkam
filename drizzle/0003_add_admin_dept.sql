@@ -1,0 +1,1 @@
+ALTER TYPE "public"."dept" ADD VALUE 'ADMIN' BEFORE 'LEAD';

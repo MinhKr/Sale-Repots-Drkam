@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { REVENUE_14D } from "@/lib/mock/dashboard";
+import type { RevenuePoint } from "@/lib/mock/types";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
 interface TooltipEntry {
@@ -51,12 +51,12 @@ function ChartTooltip({
   );
 }
 
-export function RevenueTrendChart() {
+export function RevenueTrendChart({ data }: { data: RevenuePoint[] }) {
   return (
     <div className="h-[280px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
-          data={REVENUE_14D}
+          data={data}
           margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
         >
           <CartesianGrid

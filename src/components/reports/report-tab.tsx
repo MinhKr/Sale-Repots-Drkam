@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import {
   ChevronRight,
   Pencil,
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DateRangeFilter, useDateRange } from "./date-range-filter";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +42,7 @@ import { getEmployee } from "@/lib/mock/employees";
 import { formatDateVn, formatMetric, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { deleteReport, saveReport } from "@/lib/reports/actions";
 
 /** Khối cảnh báo tồn lũy kế theo ngưỡng (Sao Xấu) */
 function BacklogAlert({
@@ -99,14 +100,14 @@ interface ReportTabProps {
 
 export function ReportTab({ tab, initialRows }: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
-  const [rows, setRows] = useLocalStorageState<ReportRow[]>(
-    `reports:${tab}`,
-    initialRows,
-  );
+  const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ReportRow | null>(null);
   const [seq, setSeq] = useState(1);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [, startTransition] = useTransition();
+  const { range, setRange, active, inRange } = useDateRange();
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -129,42 +130,89 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
     setOpen(true);
   }
 
-  function handleSubmit(row: ReportRow) {
-    if (editing) {
-      setRows((prev) =>
-        prev.map((r) => (r.id === editing.id ? { ...row, id: editing.id } : r)),
+  /** Ghép dòng vừa lưu vào state (bỏ dòng cũ đang sửa + dòng trùng id trả về). */
+  function mergeSaved(saved: ReportRow, editingId?: string) {
+    setRows((prev) => {
+      const filtered = prev.filter(
+        (r) => r.id !== saved.id && r.id !== editingId,
       );
-      toast.success("Đã cập nhật báo cáo");
-    } else {
-      setRows((prev) => [{ ...row, id: `${config.tab}-new-${seq}` }, ...prev]);
-      toast.success("Đã lưu báo cáo");
+      return [saved, ...filtered];
+    });
+  }
+
+  async function handleSubmit(row: ReportRow) {
+    setSaving(true);
+    try {
+      const saved = await saveReport(tab, {
+        employeeCode: row.employeeId,
+        date: row.date,
+        values: row.values,
+        note: row.note,
+      });
+      mergeSaved(saved, editing?.id);
+      toast.success(editing ? "Đã cập nhật báo cáo" : "Đã lưu báo cáo");
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Lưu báo cáo thất bại. Thử lại.");
+    } finally {
+      setSaving(false);
     }
-    setOpen(false);
   }
 
   function handleDelete(row: ReportRow) {
+    const prevRows = rows;
     setRows((prev) => prev.filter((r) => r.id !== row.id));
     setExpanded((prev) => {
       const next = new Set(prev);
       next.delete(row.id);
       return next;
     });
-    toast.success("Đã xóa báo cáo", {
-      action: {
-        label: "Hoàn tác",
-        onClick: () => setRows((prev) => [row, ...prev]),
-      },
+    startTransition(async () => {
+      try {
+        await deleteReport(tab, row.id);
+        toast.success("Đã xóa báo cáo", {
+          action: {
+            label: "Hoàn tác",
+            onClick: () => {
+              startTransition(async () => {
+                try {
+                  const saved = await saveReport(tab, {
+                    employeeCode: row.employeeId,
+                    date: row.date,
+                    values: row.values,
+                    note: row.note,
+                  });
+                  mergeSaved(saved);
+                } catch {
+                  toast.error("Hoàn tác thất bại.");
+                }
+              });
+            },
+          },
+        });
+      } catch (err) {
+        console.error(err);
+        setRows(prevRows); // khôi phục nếu xóa lỗi
+        toast.error("Xóa báo cáo thất bại.");
+      }
     });
   }
 
-  const sorted = [...rows].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...rows]
+    .filter((r) => inRange(r.date))
+    .sort((a, b) => b.date.localeCompare(a.date));
   const colSpan = 4 + config.tableMetrics.length;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title={`Báo cáo ${config.title}`}
-        description={`${rows.length} báo cáo · dữ liệu giả`}
+        description={
+          active
+            ? `${sorted.length} / ${rows.length} báo cáo (đang lọc)`
+            : `${rows.length} báo cáo`
+        }
         action={
           <Button onClick={openNew}>
             <Plus className="size-4" />
@@ -173,7 +221,9 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
         }
       />
 
-      {config.backlog && <BacklogAlert backlog={config.backlog} rows={rows} />}
+      <DateRangeFilter range={range} setRange={setRange} active={active} />
+
+      {config.backlog && <BacklogAlert backlog={config.backlog} rows={sorted} />}
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -269,6 +319,18 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
                   </Fragment>
                 );
               })}
+              {sorted.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={colSpan}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    {active
+                      ? "Không có báo cáo nào trong khoảng ngày đã chọn."
+                      : "Chưa có báo cáo nào."}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -291,6 +353,7 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
             key={seq}
             config={config}
             initial={editing}
+            pending={saving}
             onSubmit={handleSubmit}
             onCancel={() => setOpen(false)}
           />

@@ -8,12 +8,12 @@ import type { DeptCode } from "./types";
 /** Các bộ phận có KPI (Lead không có target riêng) */
 export const KPI_DEPTS: DeptCode[] = ["SALE", "CSKH", "LIVESTREAM", "MKT"];
 
-/** Mục tiêu doanh thu tháng mặc định theo NV (khớp số dùng ở dashboard) */
+/** Mục tiêu doanh thu tháng mặc định theo NV (khớp số dùng ở dashboard).
+ *  Hương (cskh-huong) là Admin — không có KPI, như Lead. */
 export const KPI_DEFAULT_TARGETS: Record<string, number> = {
   "sale-phuong": 220_000_000,
   "cskh-phuong": 150_000_000,
   "cskh-chinh": 150_000_000,
-  "cskh-huong": 150_000_000,
   "live-thu": 90_000_000,
   "live-thuy-mn": 90_000_000,
   "live-trang-mn": 90_000_000,

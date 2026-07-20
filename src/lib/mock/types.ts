@@ -3,13 +3,18 @@
  * Khi sang Giai đoạn 2 (DB thật) sẽ ánh xạ 1-1 sang schema Drizzle.
  */
 
-/** Bộ phận biên chế nhân sự */
-export type DeptCode = "SALE" | "CSKH" | "LIVESTREAM" | "MKT" | "LEAD";
+/** Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead) */
+export type DeptCode = "SALE" | "CSKH" | "LIVESTREAM" | "MKT" | "ADMIN" | "LEAD";
 
 /** 5 loại tab báo cáo (Sao Xấu là loại báo cáo, không phải bộ phận) */
 export type ReportTab = "SALE" | "CSKH" | "SAO_XAU" | "LIVESTREAM" | "MKT";
 
 export type Role = "STAFF" | "LEAD";
+
+/** Miền làm việc (chỉ Livestream) */
+export type Region = "MB" | "MN";
+/** Loại hợp đồng (chỉ Livestream) */
+export type Employment = "FT" | "PT";
 
 export interface Employee {
   id: string;
@@ -22,6 +27,10 @@ export interface Employee {
   /** Chữ cái viết tắt cho Avatar fallback */
   initials: string;
   active: boolean;
+  /** Miền (chỉ Livestream) — hiển thị nhãn, không lưu DB */
+  region?: Region;
+  /** Fulltime/Parttime (chỉ Livestream) — hiển thị nhãn, không lưu DB */
+  employment?: Employment;
 }
 
 /** Trạng thái đạt KPI dùng cho badge */

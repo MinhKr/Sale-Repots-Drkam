@@ -16,7 +16,7 @@
 | `SALE` | Trần Thị Hoài Phượng | Phượng Sale | |
 | `CSKH` | Nguyễn Thu Phương | Phương CSKH | |
 | `CSKH` | Nguyễn Thị Chinh | Chinh | |
-| `CSKH` | Nguyễn Thi Hương | Hương | kiêm admin — PM chốt vẫn thuộc CSKH |
+| `ADMIN` | Nguyễn Thi Hương | Hương | **Admin** — nhập được MỌI tab như Lead; không có KPI, không lên xếp hạng (chốt 2026-07-20) |
 | `LIVESTREAM` | Bàn Minh Thư | Thư | fulltime MB |
 | `LIVESTREAM` | Nguyễn Thu Thủy | Thủy MB | parttime MB |
 | `LIVESTREAM` | Trần Thị Bình | Bình | parttime MB |
@@ -27,8 +27,10 @@
 | `MKT` | Nguyễn Thị Hà | Hà | marketing ads |
 | `LEAD` | Lê Hoài Ly | Ly | Leader / BGĐ |
 
-**Tổng:** Sale 1 · CSKH 3 · Livestream **7** · MKT 1 · Lead 1.
+**Tổng:** Sale 1 · CSKH 2 · Admin 1 · Livestream **7** · MKT 1 · Lead 1 = 13.
 
+> **Cập nhật 2026-07-20:** Hương chuyển sang dept **ADMIN** (migration `0003_add_admin_dept`, cập nhật không xóa dữ liệu). Miền (MB/MN) + FT/PT của Livestream **đã lưu ở mock + hiển thị nhãn** (chưa lưu DB). Tab **Sale** chỉ còn chọn Sale + Admin + Lead (bỏ CSKH).
+>
 > CSKH có thể nhập cả tab **Sao Xấu**. Livestream + MKT do **Lead nhập hộ**.
 >
 > **Tên hiển thị** (`short_name`) có hậu tố phân biệt vì dễ nhầm: *Phượng* (Sale) vs *Phương* (CSKH); *Thủy MB* (Nguyễn Thu Thủy) vs *Thanh Thúy MN* (Nguyễn Thị Thanh Thúy). Bảng/dashboard dùng tên hiển thị; hồ sơ cá nhân + user menu dùng họ tên đầy đủ.
@@ -108,3 +110,18 @@
   2. **P13 (chặn deploy):** đổi mật khẩu tài khoản chung trước khi lên domain thật. Vì là 1 tài khoản + toàn quyền, **mật khẩu là thứ DUY NHẤT** bảo vệ toàn bộ dữ liệu.
 
   **Nợ kỹ thuật:** `employees.auth_user_id` hiện để trống (tài khoản chung không ứng với 1 nhân viên cụ thể) — cột đã sẵn sàng cho khi tách tài khoản riêng. UI vẫn dùng `CURRENT_USER` mock (hiện hiện tên "Ly") → P9/P10 sẽ thay bằng phiên thật.
+- [x] **P9 — Server Actions cho 5 loại báo cáo** ✅ (2026-07-20)
+  - `lib/auth.ts` `requireUser()` — **mọi** action/query gọi trước tiên (Drizzle bỏ qua RLS → đây là lớp kiểm soát truy cập duy nhất). Dùng `getUser()`.
+  - `lib/reports/`: `shared.ts` (registry tab→bảng, map `code↔uuid`, build record + dựng lại `ReportRow`) · `queries.ts` `listReports(tab)` · `actions.ts` `saveReport` / `deleteReport` / `saveLivestreamDay`
+  - **Ô tự tính (ô xanh) tính lại ở SERVER** bằng `computeMetrics()` — không tin số client gửi lên. Zod validate ô nhập (int/money ≥ 0 nguyên, float ≥ 0), ngày `yyyy-mm-dd`, id uuid.
+  - Upsert theo `(employee_id, report_date)` (1 NV / 1 báo cáo / ngày / tab). Livestream bulk = transaction xóa-cả-ngày rồi chèn lại dòng có dữ liệu. `revalidatePath` sau mỗi lần ghi.
+  - 5 page → **async server component** đọc `listReports`; `ReportTab` + `LivestreamTab` bỏ `localStorage`, gọi action thật (loader + toast lỗi, hoàn tác xóa = upsert lại).
+  - Verify: kết nối DB OK (13 NV map code↔uuid) · upsert tính lại đúng (tongDon 7 / DT 14tr / tiLeRep 0.9) · dọn dữ liệu test · build + typecheck + lint sạch · `/reports/*` redirect `/login` khi chưa đăng nhập.
+  - **Tối ưu tốc độ (cùng phiên):** `listReports` gộp còn **1 JOIN** + bỏ `getUser()` thừa (middleware đã xác thực) · cache map NV 60s cho đường ghi · 5 page `force-dynamic` (dữ liệu luôn mới) → độ trễ mỗi lần chuyển tab giảm ~½.
+  - **Sửa lỗi:** user menu — `DropdownMenuLabel` (Base UI `Menu.GroupLabel`) phải nằm trong `<DropdownMenuGroup>`, thiếu context làm cả trang crash "This page couldn't load". Đã bọc Group. Đổi hiển thị user menu thành tài khoản chung "Phòng Sale DrKam" / `sale@drkam.vn`.
+- [x] **P10 — Server Actions Dashboard / KPI / Pipeline** ✅ (2026-07-20)
+  - **Dashboard (`lib/dashboard/queries.ts`):** tổng hợp doanh thu THẬT từ 4 bảng có DT (Sale/CSKH `tongDoanhThu`, Livestream/MKT `revenue`) bằng **UNION ALL 1 round-trip**. Anchor = **ngày báo cáo mới nhất** (PM chốt) → "hôm qua/tuần/tháng" luôn có số. `getTeamDashboard` (summary + delta + chart 14 ngày + xếp hạng) · `getPersonalDashboards` (data mọi NV, client đổi qua selector). Verify số thật: anchor 13/07, hôm qua 69.6tr, tháng 175.3tr.
+  - **KPI (`lib/kpi/`):** `listKpiConfigs` gom theo `year-month` (1 query) · action `saveKpiConfig` upsert `(year,month,employee)` dùng `excluded.*` cho bulk. Component đọc theo tháng/năm chọn, "sao chép tháng trước" từ map, bỏ localStorage. Verify: 12 NV target 7/2026 tổng 1.36 tỷ.
+  - **Pipeline (`lib/wholesale/`):** `listWholesale` (relational query customers + logs + mã NV) · actions `setStage` / `addContactLog` (log date = ngày thật, trả log mới). Board bỏ localStorage, đổi giai đoạn optimistic + revert khi lỗi. Verify: 8 khách, 15 log.
+  - Home/dashboard-cá-nhân/kpi/pipeline → **async server component + `force-dynamic`**. Mọi action ghi vẫn `requireUser()`. Build + typecheck + lint sạch.
+  - **Còn lại:** UI user menu đã là tài khoản chung (không còn `CURRENT_USER` ở dashboard/home) — `CURRENT_USER` mock chỉ còn để tham chiếu, gỡ hẳn khi cần. P11 (xuất báo cáo thật) chưa làm.
