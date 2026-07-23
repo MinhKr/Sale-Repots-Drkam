@@ -21,6 +21,7 @@ export async function listWholesale(): Promise<WholesaleCustomer[]> {
     assignedTo: c.assignee?.code ?? c.assignedTo,
     potentialValue: Number(c.potentialValue),
     stage: c.stage,
+    archived: c.archived,
     createdDate: c.createdDate,
     logs: c.logs.map((l) => ({
       id: l.id,

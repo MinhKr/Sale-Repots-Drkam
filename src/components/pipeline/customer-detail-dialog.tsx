@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, MessageCircle, Phone, Plus, Users } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  Mail,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Plus,
+  Trash2,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +53,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onAddLog: (customerId: string, channel: ContactChannel, note: string) => void;
   onStageChange: (customerId: string, stage: WholesaleStage) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onArchive: (archived: boolean) => void;
 }
 
 export function CustomerDetailDialog({
@@ -50,9 +64,19 @@ export function CustomerDetailDialog({
   onOpenChange,
   onAddLog,
   onStageChange,
+  onEdit,
+  onDelete,
+  onArchive,
 }: Props) {
   const [channel, setChannel] = useState<ContactChannel>("call");
   const [note, setNote] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Đóng dialog → reset trạng thái xác nhận xóa (không dùng effect)
+  function handleOpenChange(next: boolean) {
+    if (!next) setConfirmDelete(false);
+    onOpenChange(next);
+  }
 
   if (!customer) return null;
   const emp = getEmployee(customer.assignedTo);
@@ -66,11 +90,71 @@ export function CustomerDetailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-heading">{customer.company}</DialogTitle>
         </DialogHeader>
+
+        {/* Thao tác: Sửa / Xóa */}
+        {confirmDelete ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-danger-500/40 bg-danger-50 p-2.5 text-sm text-danger-700">
+            <TriangleAlert className="size-4 shrink-0" />
+            <span className="flex-1">
+              Xóa khách này? Cả lịch sử liên hệ cũng bị xóa vĩnh viễn.
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmDelete(false)}
+            >
+              Huỷ
+            </Button>
+            <Button
+              size="sm"
+              className="bg-danger-600 text-white hover:bg-danger-600/90"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-3.5" />
+              Xóa
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="size-3.5" />
+              Sửa thông tin
+            </Button>
+            {customer.archived ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onArchive(false)}
+              >
+                <ArchiveRestore className="size-3.5" />
+                Bỏ lưu trữ
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onArchive(true)}
+              >
+                <Archive className="size-3.5" />
+                Lưu trữ
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Xóa
+            </Button>
+          </div>
+        )}
 
         {/* Thông tin */}
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -144,22 +228,26 @@ export function CustomerDetailDialog({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Lịch sử liên hệ ({logs.length})
           </p>
-          <ol className="space-y-3 border-l pl-4">
+          <ol className="space-y-3">
             {logs.map((log) => {
               const Icon = CHANNEL_ICON[log.channel];
               return (
-                <li key={log.id} className="relative">
-                  <span className="absolute -left-[22px] flex size-6 items-center justify-center rounded-full border bg-card text-brand-600">
+                <li key={log.id} className="flex gap-3">
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border bg-card text-brand-600">
                     <Icon className="size-3" />
                   </span>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      {CHANNEL_LABEL[log.channel]}
-                    </span>
-                    <span>·</span>
-                    <span className="tabular-nums">{formatDateVn(log.date)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {CHANNEL_LABEL[log.channel]}
+                      </span>
+                      <span>·</span>
+                      <span className="tabular-nums">
+                        {formatDateVn(log.date)}
+                      </span>
+                    </div>
+                    <p className="text-sm">{log.note}</p>
                   </div>
-                  <p className="text-sm">{log.note}</p>
                 </li>
               );
             })}
