@@ -60,13 +60,3 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     </nav>
   );
 }
-
-export function SidebarFooter() {
-  return (
-    <div className="shrink-0 border-t border-sidebar-border px-5 py-3">
-      <p className="text-[11px] leading-relaxed text-sidebar-foreground/55">
-        Bản demo UI · dữ liệu giả
-      </p>
-    </div>
-  );
-}
