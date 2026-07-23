@@ -36,6 +36,13 @@
       "when": 1784539641120,
       "tag": "0004_cskh_outbound_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784793530854,
+      "tag": "0005_wholesale_archived",
+      "breakpoints": true
     }
   ]
 }

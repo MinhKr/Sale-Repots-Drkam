@@ -1,4 +1,12 @@
-import { bigint, date, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  date,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { contactChannelEnum, wholesaleStageEnum } from "./enums";
 import { employees } from "./employees";
@@ -19,6 +27,8 @@ export const wholesaleCustomers = pgTable("wholesale_customers", {
   /** Giá trị tiềm năng (VND) */
   potentialValue: bigint("potential_value", { mode: "number" }).notNull().default(0),
   stage: wholesaleStageEnum("stage").notNull().default("moi"),
+  /** Lưu trữ: ẩn khỏi board pipeline (đơn đã chốt/đóng gói xử lý xong). */
+  archived: boolean("archived").notNull().default(false),
   createdDate: date("created_date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

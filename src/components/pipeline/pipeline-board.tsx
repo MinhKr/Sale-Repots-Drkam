@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Archive, ArchiveRestore, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,6 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CustomerDetailDialog } from "./customer-detail-dialog";
+import {
+  CustomerFormDialog,
+  type CustomerFormValues,
+} from "./customer-form-dialog";
 import { PageHeader } from "@/components/page-header";
 import {
   STAGES,
@@ -18,7 +24,14 @@ import {
   type WholesaleCustomer,
   type WholesaleStage,
 } from "@/lib/mock/wholesale";
-import { addContactLog, setStage } from "@/lib/wholesale/actions";
+import {
+  addContactLog,
+  createCustomer,
+  deleteCustomer,
+  setArchived,
+  setStage,
+  updateCustomer,
+} from "@/lib/wholesale/actions";
 import { getEmployee } from "@/lib/mock/employees";
 import { formatCompactVnd } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,7 +47,12 @@ export function PipelineBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<WholesaleStage | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [, startTransition] = useTransition();
+  // Form thêm/sửa khách
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<WholesaleCustomer | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const assignees = useMemo(
     () => [...new Set(customers.map((c) => c.assignedTo))],
@@ -50,15 +68,23 @@ export function PipelineBoard({
     [assignees],
   );
 
-  const visible =
+  // Lọc theo phụ trách (chưa lọc lưu trữ)
+  const base =
     filter === "all"
       ? customers
       : customers.filter((c) => c.assignedTo === filter);
 
+  // Hiển thị trên board: ẩn khách đã lưu trữ (trừ khi bật xem lại)
+  const visible = base.filter((c) => showArchived || !c.archived);
+  const archivedCount = base.filter((c) => c.archived).length;
+
   const selected = customers.find((c) => c.id === selectedId) ?? null;
 
-  const totalValue = visible.reduce((s, c) => s + c.potentialValue, 0);
-  const wonValue = visible
+  // Tiềm năng = khách chưa lưu trữ trên board · Đã chốt = mọi đơn chốt (kể cả đã lưu trữ)
+  const totalValue = base
+    .filter((c) => !c.archived)
+    .reduce((s, c) => s + c.potentialValue, 0);
+  const wonValue = base
     .filter((c) => c.stage === "chot")
     .reduce((s, c) => s + c.potentialValue, 0);
 
@@ -101,31 +127,134 @@ export function PipelineBoard({
     });
   }
 
+  function openAdd() {
+    setEditing(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(customer: WholesaleCustomer) {
+    setEditing(customer);
+    setSelectedId(null); // đóng dialog chi tiết
+    setFormOpen(true);
+  }
+
+  async function handleFormSubmit(values: CustomerFormValues) {
+    setSaving(true);
+    try {
+      if (editing) {
+        const updated = await updateCustomer(editing.id, values);
+        setCustomers((prev) =>
+          prev.map((c) =>
+            c.id === editing.id ? { ...c, ...updated } : c,
+          ),
+        );
+        toast.success("Đã cập nhật khách hàng");
+      } else {
+        const created = await createCustomer(values);
+        setCustomers((prev) => [created, ...prev]);
+        toast.success("Đã thêm khách hàng");
+      }
+      setFormOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Lưu khách hàng thất bại. Thử lại.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleDelete(customer: WholesaleCustomer) {
+    const prevRows = customers;
+    setCustomers((prev) => prev.filter((c) => c.id !== customer.id));
+    setSelectedId(null);
+    startTransition(async () => {
+      try {
+        await deleteCustomer(customer.id);
+        toast.success(`Đã xóa "${customer.company}"`);
+      } catch (err) {
+        console.error(err);
+        setCustomers(prevRows);
+        toast.error("Xóa khách hàng thất bại.");
+      }
+    });
+  }
+
+  function handleArchive(customer: WholesaleCustomer, archived: boolean) {
+    const prevRows = customers;
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === customer.id ? { ...c, archived } : c)),
+    );
+    setSelectedId(null);
+    startTransition(async () => {
+      try {
+        await setArchived(customer.id, archived);
+        toast.success(
+          archived
+            ? `Đã lưu trữ "${customer.company}"`
+            : `Đã bỏ lưu trữ "${customer.company}"`,
+        );
+      } catch (err) {
+        console.error(err);
+        setCustomers(prevRows);
+        toast.error("Thao tác lưu trữ thất bại.");
+      }
+    });
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Pipeline khách sỉ"
         description={`${visible.length} khách · tiềm năng ${formatCompactVnd(totalValue)} · đã chốt ${formatCompactVnd(wonValue)}`}
         action={
-          <Select
-            value={filter}
-            onValueChange={(v) => setFilter(v ?? "all")}
-            items={filterItems}
-          >
-            <SelectTrigger className="w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả phụ trách</SelectItem>
-              {assignees.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {getEmployee(id)?.shortName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              value={filter}
+              onValueChange={(v) => setFilter(v ?? "all")}
+              items={filterItems}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả phụ trách</SelectItem>
+                {assignees.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {getEmployee(id)?.shortName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={openAdd}>
+              <Plus className="size-4" />
+              Thêm khách
+            </Button>
+          </div>
         }
       />
+
+      {/* Toggle xem đã lưu trữ */}
+      {archivedCount > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {showArchived ? (
+              <>
+                <ArchiveRestore className="size-3.5" />
+                Ẩn đơn đã lưu trữ
+              </>
+            ) : (
+              <>
+                <Archive className="size-3.5" />
+                Hiện đơn đã lưu trữ ({archivedCount})
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Kanban */}
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -188,23 +317,38 @@ export function PipelineBoard({
                       className={cn(
                         "cursor-grab rounded-md border bg-card p-3 text-left shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing",
                         draggingId === c.id && "opacity-50",
+                        c.archived && "border-dashed bg-muted/40 opacity-70",
                       )}
                     >
+                      {c.archived && (
+                        <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <Archive className="size-2.5" />
+                          Đã lưu trữ
+                        </span>
+                      )}
                       <p className="text-sm font-medium leading-snug">
                         {c.company}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {c.contactName} · {c.phone}
                       </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="font-mono text-sm font-semibold tabular-nums text-brand-600">
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-brand-600">
                           {formatCompactVnd(c.potentialValue)}
                         </span>
-                        <Avatar className="size-6">
-                          <AvatarFallback className="bg-brand-100 text-[10px] font-semibold text-brand-700">
-                            {emp?.initials}
-                          </AvatarFallback>
-                        </Avatar>
+                        <span
+                          className="flex min-w-0 items-center gap-1 rounded-full bg-muted py-0.5 pl-0.5 pr-2"
+                          title={emp?.name}
+                        >
+                          <Avatar className="size-5 shrink-0">
+                            <AvatarFallback className="bg-brand-100 text-[9px] font-semibold text-brand-700">
+                              {emp?.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate text-[11px] font-medium text-foreground">
+                            {emp?.shortName ?? "—"}
+                          </span>
+                        </span>
                       </div>
                     </button>
                   );
@@ -221,8 +365,8 @@ export function PipelineBoard({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        💡 Kéo-thả thẻ giữa các cột để đổi giai đoạn, hoặc bấm thẻ để xem chi
-        tiết & thêm log liên hệ.
+        💡 Bấm <span className="font-medium">Thêm khách</span> để tạo mới · kéo-thả
+        thẻ để đổi giai đoạn · bấm thẻ để xem chi tiết, thêm log, sửa hoặc xóa.
       </p>
 
       <CustomerDetailDialog
@@ -231,6 +375,17 @@ export function PipelineBoard({
         onOpenChange={(o) => !o && setSelectedId(null)}
         onAddLog={addLog}
         onStageChange={moveTo}
+        onEdit={() => selected && openEdit(selected)}
+        onDelete={() => selected && handleDelete(selected)}
+        onArchive={(archived) => selected && handleArchive(selected, archived)}
+      />
+
+      <CustomerFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        initial={editing}
+        pending={saving}
+        onSubmit={handleFormSubmit}
       />
     </div>
   );

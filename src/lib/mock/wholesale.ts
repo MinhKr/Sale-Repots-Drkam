@@ -49,6 +49,8 @@ export interface WholesaleCustomer {
   assignedTo: string;
   potentialValue: number;
   stage: WholesaleStage;
+  /** Đã lưu trữ → ẩn khỏi board pipeline (dữ liệu thật luôn có; seed mặc định false) */
+  archived?: boolean;
   createdDate: string;
   logs: ContactLog[];
 }

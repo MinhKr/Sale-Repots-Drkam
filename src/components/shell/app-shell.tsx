@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Header } from "./header";
-import { SidebarBrand, SidebarNav, SidebarFooter } from "./sidebar";
+import { SidebarBrand, SidebarNav } from "./sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -19,7 +19,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-sidebar lg:flex">
         <SidebarBrand />
         <SidebarNav />
-        <SidebarFooter />
       </aside>
 
       {/* Sidebar dạng Sheet — mobile */}
@@ -33,7 +32,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SheetHeader>
           <SidebarBrand />
           <SidebarNav onNavigate={() => setMobileOpen(false)} />
-          <SidebarFooter />
         </SheetContent>
       </Sheet>
 
