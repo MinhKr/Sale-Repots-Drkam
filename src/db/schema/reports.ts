@@ -124,20 +124,64 @@ export const reportsBadReview = pgTable(
     // Phát sinh
     newBad: integer("new_bad").notNull().default(0),
     resolved: integer("resolved").notNull().default(0),
-    // Theo sàn
+    // Phân loại sao xấu
+    star1: integer("star_1").notNull().default(0),
+    star2: integer("star_2").notNull().default(0),
+    star3: integer("star_3").notNull().default(0),
+    // Theo sàn (chỉ Shopee + TikTok — DrKam không bán trên Lazada)
     shopee: integer("shopee").notNull().default(0),
     tiktok: integer("tiktok").notNull().default(0),
-    lazada: integer("lazada").notNull().default(0),
+    // Sao khách đã sửa lại thành 5★
+    fixed5Shopee: integer("fixed_5_shopee").notNull().default(0),
+    fixed5Tiktok: integer("fixed_5_tiktok").notNull().default(0),
+    // Case đang chờ khách sửa
+    pendingShopee: integer("pending_shopee").notNull().default(0),
+    pendingTiktok: integer("pending_tiktok").notNull().default(0),
+    // Phân loại vấn đề
+    warehouseIssue: integer("warehouse_issue").notNull().default(0),
+    noContact: integer("no_contact").notNull().default(0),
 
     // --- Ô tự tính (lưu sẵn) ---
     tonNgay: integer("ton_ngay").notNull().default(0),
     tiLeXuLy: percent("ti_le_xu_ly").notNull().default(0),
+    fixed5Total: integer("fixed_5_total").notNull().default(0),
+    pendingTotal: integer("pending_total").notNull().default(0),
+
+    // --- Ô nhập chữ ---
+    reviewLink: text("review_link"),
+    rootCause: text("root_cause"),
 
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("uq_bad_emp_date").on(t.employeeId, t.reportDate)],
+);
+
+/* ===================== bad_review_opening (tồn đầu kỳ) ===================== */
+/**
+ * Tồn sao xấu MANG SANG đầu tháng — số chốt của kỳ trước, không suy ra được từ
+ * các dòng báo cáo trong app.
+ *
+ * Cần vì app bắt đầu có dữ liệu từ T7/2026 trong khi sao xấu đã tồn từ T6
+ * (sheet "Lũy kế T6" của khách chốt 37 case). Khi tính tồn lũy kế đến tháng M,
+ * lấy dòng opening mới nhất có (year, month) ≤ M làm mốc rồi cộng net từ đó.
+ *
+ * unique(year, month) — 1 dòng / tháng.
+ */
+export const badReviewOpening = pgTable(
+  "bad_review_opening",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(), // 1..12
+    /** Số sao xấu còn tồn tại thời điểm ĐẦU tháng này */
+    balance: integer("balance").notNull().default(0),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("uq_bad_opening_year_month").on(t.year, t.month)],
 );
 
 /* ========================= reports_livestream ========================= */

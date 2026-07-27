@@ -63,3 +63,35 @@ export async function saveKpiConfig(input: unknown): Promise<void> {
   revalidatePath("/home");
   revalidatePath("/dashboard-ca-nhan");
 }
+
+const openingSchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12),
+  balance: z.number().int().min(0),
+  note: z.string().max(500).optional(),
+});
+
+/**
+ * Lưu mốc tồn sao xấu ĐẦU KỲ của 1 tháng (upsert theo year+month).
+ * Đây là số chốt của kỳ trước — app không suy ra được, phải nhập tay.
+ */
+export async function saveBadReviewOpening(input: unknown): Promise<void> {
+  await requireUser();
+  const { year, month, balance, note } = openingSchema.parse(input);
+
+  await db
+    .insert(schema.badReviewOpening)
+    .values({ year, month, balance, note: note?.trim() || null })
+    .onConflictDoUpdate({
+      target: [schema.badReviewOpening.year, schema.badReviewOpening.month],
+      set: {
+        balance: excluded("balance"),
+        note: excluded("note"),
+        updatedAt: new Date(),
+      },
+    });
+
+  revalidatePath("/kpi");
+  revalidatePath("/home");
+  revalidatePath("/reports/sao-xau");
+}

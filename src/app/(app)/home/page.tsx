@@ -10,7 +10,8 @@ import { MonthTargetCard } from "@/components/dashboard/month-target-card";
 import { MonthFilter } from "@/components/dashboard/month-filter";
 import { RevenueTrendChart } from "@/components/dashboard/revenue-trend-chart";
 import { TeamLeaderboard } from "@/components/dashboard/team-leaderboard";
-import { getTeamDashboard } from "@/lib/dashboard/queries";
+import { BadReviewCard } from "@/components/dashboard/bad-review-card";
+import { getBadReviewSummary, getTeamDashboard } from "@/lib/dashboard/queries";
 import { formatCompactVnd, formatDelta } from "@/lib/format";
 
 export const metadata = { title: "Trang chủ" };
@@ -23,8 +24,14 @@ export default async function HomePage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const { month: monthParam } = await searchParams;
-  const { summary, revenue14d, ranking, availableMonths, month, monthLabel } =
-    await getTeamDashboard(monthParam);
+  // 2 truy vấn độc lập (doanh thu / sao xấu) — chạy song song, không nối tiếp.
+  const [
+    { summary, revenue14d, ranking, availableMonths, month, monthLabel },
+    badReview,
+  ] = await Promise.all([
+    getTeamDashboard(monthParam),
+    getBadReviewSummary(monthParam),
+  ]);
   const { homQua, tuanNay, thangNay, mucTieuThang } = summary;
 
   return (
@@ -73,6 +80,9 @@ export default async function HomePage({
           icon={TrendingUp}
         />
       </div>
+
+      {/* Sao Xấu — tồn lũy kế, tỉ lệ xử lý, người phụ trách */}
+      {badReview.month && <BadReviewCard data={badReview} />}
 
       {/* Biểu đồ doanh thu */}
       <Card>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Loader2, Save, TriangleAlert } from "lucide-react";
+import { Copy, Loader2, Save, Star, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,21 +25,48 @@ import {
   YEARS,
 } from "@/lib/mock/kpi";
 import type { MonthKpi } from "@/lib/kpi/queries";
-import { saveKpiConfig } from "@/lib/kpi/actions";
+import { saveBadReviewOpening, saveKpiConfig } from "@/lib/kpi/actions";
+import { SAO_XAU_CONFIG } from "@/lib/mock/reports";
 import { MoneyInput } from "@/components/money-input";
 import { PageHeader } from "@/components/page-header";
 import { DEPT_LABEL, employeesByDept } from "@/lib/mock/employees";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
 const monthKey = (y: number, m: number) => `${y}-${m}`;
+/** Khóa của bảng tồn đầu kỳ — có đệm 0 ("2026-07") */
+const openKey = (y: number, m: number) => `${y}-${String(m).padStart(2, "0")}`;
 const emptyKpi = (): MonthKpi => ({ targets: {}, warning: KPI_DEFAULT_WARNING });
 
-export function KpiConfig({ configs }: { configs: Record<string, MonthKpi> }) {
+export function KpiConfig({
+  configs,
+  openings,
+}: {
+  configs: Record<string, MonthKpi>;
+  /** tồn sao xấu đầu kỳ theo "yyyy-mm" */
+  openings: Record<string, number>;
+}) {
   const [month, setMonth] = useState(7);
   const [year, setYear] = useState(2026);
   // Bản chỉnh sửa cục bộ theo từng tháng (ghi đè lên configs từ server).
   const [edited, setEdited] = useState<Record<string, MonthKpi>>({});
+  const [editedOpenings, setEditedOpenings] = useState<Record<string, number>>({});
   const [saving, startSaving] = useTransition();
+  const [savingOpening, startSavingOpening] = useTransition();
+
+  const oKey = openKey(year, month);
+  const opening = editedOpenings[oKey] ?? openings[oKey] ?? 0;
+
+  function saveOpening() {
+    startSavingOpening(async () => {
+      try {
+        await saveBadReviewOpening({ year, month, balance: opening });
+        toast.success(`Đã lưu tồn sao xấu đầu tháng ${month}/${year}`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Lưu tồn đầu kỳ thất bại. Thử lại.");
+      }
+    });
+  }
 
   const key = monthKey(year, month);
   const current: MonthKpi = edited[key] ?? configs[key] ?? emptyKpi();
@@ -159,6 +186,51 @@ export function KpiConfig({ configs }: { configs: Record<string, MonthKpi> }) {
               <span className="font-medium text-warning-600">Gần đạt</span> khi ≥ {warning}% ·
               dưới {warning}% là{" "}
               <span className="font-medium text-danger-600">Yếu</span>.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tồn sao xấu đầu kỳ — số chốt kỳ trước, app không tự suy ra được */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-heading text-base">
+            <Star className="size-4 text-danger-600" />
+            Tồn sao xấu đầu tháng {month}/{year}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="opening" className="text-xs font-normal">
+                Số case mang sang
+              </Label>
+              <MoneyInput
+                id="opening"
+                value={opening}
+                onValueChange={(n) =>
+                  setEditedOpenings((prev) => ({ ...prev, [oKey]: n }))
+                }
+                className="cell-input w-32 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={saveOpening}
+              disabled={savingOpening}
+            >
+              {savingOpening ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              Lưu tồn đầu kỳ
+            </Button>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Số sao xấu còn tồn tại thời điểm ĐẦU tháng này (chốt từ kỳ trước).
+              Tồn lũy kế trên Trang chủ = số này + phát sinh − đã xử lý. Ngưỡng
+              cảnh báo: đỏ ≥ {SAO_XAU_CONFIG.backlog?.threshold} · vàng ≥{" "}
+              {SAO_XAU_CONFIG.backlog?.warnThreshold}.
             </p>
           </div>
         </CardContent>

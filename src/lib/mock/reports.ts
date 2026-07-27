@@ -16,8 +16,10 @@ export interface InputField {
 export interface BacklogConfig {
   label: string;
   unit: string;
-  /** ngưỡng cảnh báo — vượt ngưỡng thì báo đỏ */
+  /** ngưỡng cảnh báo ĐỎ — tồn lũy kế ≥ ngưỡng này thì báo đỏ */
   threshold: number;
+  /** ngưỡng cảnh báo VÀNG — từ mức này đến ngưỡng đỏ thì báo vàng */
+  warnThreshold: number;
   /** net phát sinh trong 1 dòng (vd sao xấu mới - đã xử lý) */
   net: (v: Record<string, number>) => number;
 }
@@ -37,15 +39,28 @@ export interface TableMetric {
   kind: ValueKind;
 }
 
+/** Ô nhập CHỮ (vàng) — link, nguyên nhân… lưu text chứ không phải số */
+export interface TextField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  /** ô nhiều dòng (textarea) thay vì 1 dòng */
+  multiline?: boolean;
+}
+
 export interface ReportConfig {
   tab: ReportTab;
   title: string;
   /** Bộ phận được phép nhập tab này (dùng cho selector nhân viên) */
   allowedDepts: DeptCode[];
   inputs: InputField[];
+  /** Ô nhập chữ (nếu có) — hiện dưới các ô số trong form */
+  textInputs?: TextField[];
   computed: ComputedField[];
   /** Các cột số liệu (ngoài Nhân viên/Ngày) hiển thị ở bảng */
   tableMetrics: TableMetric[];
+  /** Nhãn riêng cho ô Ghi chú (mặc định "Ghi chú") */
+  noteLabel?: string;
   /** Nếu có: hiển thị khối cảnh báo tồn lũy kế trên bảng (Sao Xấu) */
   backlog?: BacklogConfig;
 }
@@ -57,6 +72,8 @@ export interface ReportRow {
   /** ISO yyyy-mm-dd */
   date: string;
   values: Record<string, number>;
+  /** Giá trị các ô nhập chữ (config.textInputs) */
+  texts?: Record<string, string>;
   note?: string;
 }
 
@@ -168,13 +185,36 @@ export const SAO_XAU_CONFIG: ReportConfig = {
   tab: "SAO_XAU",
   title: "Sao Xấu",
   allowedDepts: ["CSKH", "ADMIN", "LEAD"],
+  // Bộ ô nhập bám theo sheet "Nhập liệu ngày" của khách (7/2026).
   inputs: [
     { key: "newBad", label: "Sao xấu mới", kind: "int", group: "Phát sinh" },
     { key: "resolved", label: "Đã xử lý / gỡ", kind: "int", group: "Phát sinh" },
-    { key: "shopee", label: "Shopee", kind: "int", group: "Theo sàn" },
-    { key: "tiktok", label: "TikTok", kind: "int", group: "Theo sàn" },
-    { key: "lazada", label: "Lazada", kind: "int", group: "Theo sàn" },
+    { key: "star1", label: "1★", kind: "int", group: "Phân loại sao" },
+    { key: "star2", label: "2★", kind: "int", group: "Phân loại sao" },
+    { key: "star3", label: "3★", kind: "int", group: "Phân loại sao" },
+    { key: "shopee", label: "Shopee", kind: "int", group: "Nguồn phát sinh" },
+    { key: "tiktok", label: "TikTok", kind: "int", group: "Nguồn phát sinh" },
+    { key: "fixed5Shopee", label: "Shopee", kind: "int", group: "Sao khách đã sửa 5★" },
+    { key: "fixed5Tiktok", label: "TikTok", kind: "int", group: "Sao khách đã sửa 5★" },
+    { key: "pendingShopee", label: "Shopee", kind: "int", group: "Chờ khách sửa" },
+    { key: "pendingTiktok", label: "TikTok", kind: "int", group: "Chờ khách sửa" },
+    { key: "warehouseIssue", label: "Vấn đề kho", kind: "int", group: "Phân loại vấn đề" },
+    { key: "noContact", label: "Không LH được KH", kind: "int", group: "Phân loại vấn đề" },
   ],
+  textInputs: [
+    {
+      key: "reviewLink",
+      label: "Link đánh giá",
+      placeholder: "Dán link đánh giá (nếu có)",
+    },
+    {
+      key: "rootCause",
+      label: "Nguyên nhân chính",
+      placeholder: "vd: sản phẩm không như mô tả, shipper không giao tận nhà…",
+      multiline: true,
+    },
+  ],
+  noteLabel: "Ghi chú xử lý",
   computed: [
     { key: "tonNgay", label: "Tồn trong ngày", kind: "int", compute: (v) => v.newBad - v.resolved },
     {
@@ -183,19 +223,39 @@ export const SAO_XAU_CONFIG: ReportConfig = {
       kind: "percent",
       compute: (v) => ratio(v.resolved, v.newBad),
     },
+    {
+      key: "fixed5Total",
+      label: "Sao sửa 5★ tổng",
+      kind: "int",
+      compute: (v) => v.fixed5Shopee + v.fixed5Tiktok,
+    },
+    {
+      key: "pendingTotal",
+      label: "Chờ KH sửa tổng",
+      kind: "int",
+      compute: (v) => v.pendingShopee + v.pendingTiktok,
+    },
   ],
   tableMetrics: [
     { key: "newBad", label: "Sao xấu mới", kind: "int" },
     { key: "resolved", label: "Đã xử lý", kind: "int" },
     { key: "tonNgay", label: "Tồn/ngày", kind: "int" },
+    { key: "fixed5Total", label: "Sửa 5★", kind: "int" },
+    { key: "pendingTotal", label: "Chờ sửa", kind: "int" },
+    { key: "noContact", label: "Không LH được", kind: "int" },
   ],
   backlog: {
     label: "Tồn sao xấu lũy kế",
     unit: "sao xấu",
-    threshold: 10,
+    // Ngưỡng lấy theo sheet "KPI & Cấu hình" của khách (ĐỎ 50 · VÀNG 30)
+    threshold: 50,
+    warnThreshold: 30,
     net: (v) => v.newBad - v.resolved,
   },
 };
+
+/** Mục tiêu tỉ lệ xử lý sao xấu — sheet "KPI & Cấu hình": tối thiểu 80%. */
+export const SAO_XAU_GOAL_TI_LE_XU_LY = 0.8;
 
 /* ============================ TAB LIVESTREAM ============================ */
 // reports_livestream — Lead nhập hộ (bulk 6 dòng). Fields theo ví dụ bulk trong kế hoạch.
@@ -291,9 +351,12 @@ export function computeMetrics(
   config: ReportConfig,
   values: Record<string, number>,
 ): Record<string, number> {
-  const acc: Record<string, number> = { ...values };
+  // Mọi ô nhập phải có mặt (mặc định 0) — dòng cũ lưu trước khi thêm ô mới sẽ
+  // thiếu key, để undefined lọt vào compute() là ra NaN.
+  const acc: Record<string, number> = { ...emptyValues(config), ...values };
   for (const f of config.computed) {
-    acc[f.key] = f.compute(acc);
+    const n = f.compute(acc);
+    acc[f.key] = Number.isFinite(n) ? n : 0;
   }
   return acc;
 }
@@ -301,6 +364,11 @@ export function computeMetrics(
 /** Giá trị mặc định (0) cho tất cả ô nhập của một config. */
 export function emptyValues(config: ReportConfig): Record<string, number> {
   return Object.fromEntries(config.inputs.map((f) => [f.key, 0]));
+}
+
+/** Giá trị rỗng cho các ô nhập chữ của 1 tab. */
+export function emptyTexts(config: ReportConfig): Record<string, string> {
+  return Object.fromEntries((config.textInputs ?? []).map((f) => [f.key, ""]));
 }
 
 /* ============================ SEED ROWS ============================ */
@@ -361,26 +429,26 @@ export const CSKH_SEED: ReportRow[] = [
   },
 ];
 
-// Tồn lũy kế = Σ(newBad - resolved) = 4 + 4 + 4 = 12 > ngưỡng 10 → cảnh báo đỏ
+// Tồn lũy kế = Σ(newBad - resolved) = 4 + 4 + 4 = 12
 export const SAO_XAU_SEED: ReportRow[] = [
   {
     id: "x-1",
     employeeId: "cskh-huong",
     date: "2026-07-13",
-    values: { newBad: 7, resolved: 3, shopee: 3, tiktok: 3, lazada: 1 },
+    values: { newBad: 7, resolved: 3, shopee: 4, tiktok: 3 },
     note: "Đang khiếu nại 2 đơn TikTok Shop.",
   },
   {
     id: "x-2",
     employeeId: "cskh-phuong",
     date: "2026-07-12",
-    values: { newBad: 6, resolved: 2, shopee: 2, tiktok: 3, lazada: 1 },
+    values: { newBad: 6, resolved: 2, shopee: 3, tiktok: 3 },
   },
   {
     id: "x-3",
     employeeId: "cskh-chinh",
     date: "2026-07-11",
-    values: { newBad: 5, resolved: 1, shopee: 3, tiktok: 2, lazada: 0 },
+    values: { newBad: 5, resolved: 1, shopee: 3, tiktok: 2 },
   },
 ];
 

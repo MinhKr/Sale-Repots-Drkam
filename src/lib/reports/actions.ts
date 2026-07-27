@@ -50,11 +50,21 @@ const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày không hợp lệ (yyyy-mm-dd)");
 
+/** Zod schema cho phần `texts` — theo đúng ô nhập chữ của từng tab. */
+function textsSchema(tab: ConfigTab) {
+  const shape: Record<string, z.ZodType> = {};
+  for (const f of CONFIG_BY_TAB[tab].textInputs ?? []) {
+    shape[f.key] = z.string().max(2000).optional();
+  }
+  return z.object(shape).optional();
+}
+
 function reportInputSchema(tab: ConfigTab) {
   return z.object({
     employeeCode: z.string().min(1, "Thiếu nhân viên"),
     date: dateSchema,
     values: valuesSchema(tab),
+    texts: textsSchema(tab),
     note: z.string().max(2000).optional(),
   });
 }
@@ -89,6 +99,7 @@ export async function saveReport(
     parsed.date,
     parsed.values as Record<string, number>,
     parsed.note,
+    parsed.texts as Record<string, string> | undefined,
   );
 
   const [saved] = await db

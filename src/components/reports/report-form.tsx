@@ -15,6 +15,7 @@ import {
 import { DialogFooter } from "@/components/ui/dialog";
 import {
   computeMetrics,
+  emptyTexts,
   emptyValues,
   TODAY_ISO,
   type ReportConfig,
@@ -58,6 +59,9 @@ export function ReportForm({
   const [values, setValues] = useState<Record<string, number>>(
     initial ? { ...initial.values } : emptyValues(config),
   );
+  const [texts, setTexts] = useState<Record<string, string>>(
+    initial?.texts ? { ...emptyTexts(config), ...initial.texts } : emptyTexts(config),
+  );
   const [note, setNote] = useState(initial?.note ?? "");
 
   // Ô tự tính — tính lại mỗi lần render (real-time theo state)
@@ -86,6 +90,7 @@ export function ReportForm({
       employeeId,
       date,
       values,
+      texts: config.textInputs?.length ? texts : undefined,
       note: note.trim() || undefined,
     });
   }
@@ -193,10 +198,40 @@ export function ReportForm({
         </div>
       </div>
 
+      {/* Ô nhập chữ (link, nguyên nhân…) */}
+      {config.textInputs?.map((f) => (
+        <div key={f.key} className="space-y-1.5">
+          <Label htmlFor={`t-${f.key}`} className="text-xs font-normal">
+            {f.label}
+          </Label>
+          {f.multiline ? (
+            <textarea
+              id={`t-${f.key}`}
+              rows={2}
+              className="cell-input w-full resize-y text-sm"
+              value={texts[f.key] ?? ""}
+              placeholder={f.placeholder}
+              onChange={(e) =>
+                setTexts((prev) => ({ ...prev, [f.key]: e.target.value }))
+              }
+            />
+          ) : (
+            <Input
+              id={`t-${f.key}`}
+              value={texts[f.key] ?? ""}
+              placeholder={f.placeholder}
+              onChange={(e) =>
+                setTexts((prev) => ({ ...prev, [f.key]: e.target.value }))
+              }
+            />
+          )}
+        </div>
+      ))}
+
       {/* Ghi chú */}
       <div className="space-y-1.5">
         <Label htmlFor="note" className="text-xs font-normal">
-          Ghi chú
+          {config.noteLabel ?? "Ghi chú"}
         </Label>
         <Input
           id="note"
