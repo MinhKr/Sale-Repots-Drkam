@@ -33,11 +33,15 @@ export async function listReports(tab: ConfigTab): Promise<ReportRow[]> {
   return rows.map(({ report, code }) => {
     const values: Record<string, number> = {};
     for (const f of config.inputs) values[f.key] = Number(report[f.key] ?? 0);
+    const texts: Record<string, string> = {};
+    for (const t of config.textInputs ?? [])
+      texts[t.key] = (report[t.key] as string | null) ?? "";
     return {
       id: report.id as string,
       employeeId: code ?? (report.employeeId as string),
       date: report.reportDate as string,
       values,
+      texts: config.textInputs?.length ? texts : undefined,
       note: (report.note as string | null) ?? undefined,
     };
   });

@@ -1,6 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { statusFromProgress } from "@/lib/mock/dashboard";
+import { SAO_XAU_CONFIG, SAO_XAU_GOAL_TI_LE_XU_LY } from "@/lib/mock/reports";
+import {
+  listOpenings,
+  openingFor,
+  openingKey,
+} from "@/lib/reports/bad-review-opening";
 import type {
   DeptCode,
   KpiStatus,
@@ -345,6 +351,225 @@ function empMonthRevenue(
   const m = empDaily.get(empId);
   if (m) for (const [d, v] of m) if (d.slice(0, 7) === mKey) s += v;
   return s;
+}
+
+/* --------------------------- Khối Sao Xấu ------------------------------- */
+
+/** Một NV có nhập báo cáo Sao Xấu trong tháng đang xem. */
+export interface BadReviewHandler {
+  code: string;
+  name: string;
+  shortName: string;
+  initials: string;
+  newBad: number;
+  resolved: number;
+}
+
+export interface BadReviewSummary {
+  /** tháng đang xem (yyyy-mm) — null khi chưa có báo cáo Sao Xấu nào */
+  month: string | null;
+  monthLabel: string;
+  /**
+   * Tồn lũy kế = tồn đầu kỳ + Σ(sao xấu mới − đã xử lý) từ mốc đầu kỳ đến HẾT
+   * tháng đang xem.
+   */
+  tonLuyKe: number;
+  /** tồn mang sang từ mốc đầu kỳ đang áp dụng */
+  tonDauKy: number;
+  /** nhãn mốc đầu kỳ, vd "đầu tháng 07/2026" — null nếu chưa khai báo mốc nào */
+  tonDauKyLabel: string | null;
+  /** ngưỡng cảnh báo ĐỎ / VÀNG, lấy chung với trang Sao Xấu */
+  threshold: number;
+  warnThreshold: number;
+  /** mục tiêu tỉ lệ xử lý (0..1) */
+  goal: number;
+  /** phát sinh trong tháng đang xem */
+  newBad: number;
+  resolved: number;
+  /** đã xử lý / sao xấu mới trong tháng */
+  tiLeXuLy: number;
+  /** sao khách đã sửa lại thành 5★ trong tháng */
+  fixed5: number;
+  /** case đang chờ khách sửa (số của ngày mới nhất có dữ liệu) */
+  pending: number;
+  /** không liên hệ được khách — cộng dồn trong tháng */
+  noContact: number;
+  /** case liên quan kho — cộng dồn trong tháng */
+  warehouseIssue: number;
+  /** phát sinh theo sàn trong tháng */
+  shopee: number;
+  tiktok: number;
+  /** phân loại sao xấu trong tháng */
+  star1: number;
+  star2: number;
+  star3: number;
+  /** người phụ trách, nhiều → ít sao xấu đã gỡ */
+  handlers: BadReviewHandler[];
+}
+
+const BACKLOG = SAO_XAU_CONFIG.backlog!;
+
+const EMPTY_BAD_REVIEW: BadReviewSummary = {
+  month: null,
+  monthLabel: "",
+  tonLuyKe: 0,
+  tonDauKy: 0,
+  tonDauKyLabel: null,
+  threshold: BACKLOG.threshold,
+  warnThreshold: BACKLOG.warnThreshold,
+  goal: SAO_XAU_GOAL_TI_LE_XU_LY,
+  newBad: 0,
+  resolved: 0,
+  tiLeXuLy: 0,
+  fixed5: 0,
+  pending: 0,
+  noContact: 0,
+  warehouseIssue: 0,
+  shopee: 0,
+  tiktok: 0,
+  star1: 0,
+  star2: 0,
+  star3: 0,
+  handlers: [],
+};
+
+/**
+ * Tổng hợp Sao Xấu cho Trang chủ — bảng `reports_bad_review` KHÔNG có doanh thu
+ * nên không nằm trong `loadBase()`; đọc riêng ở đây (JOIN sang employees để lấy
+ * tên người phụ trách) cùng bảng mốc tồn đầu kỳ, 2 query chạy song song.
+ *
+ * `selectedMonth` dùng chung bộ lọc tháng của Trang chủ; nếu tháng đó không có
+ * báo cáo Sao Xấu thì rơi về tháng mới nhất CÓ dữ liệu (card tự hiện nhãn tháng
+ * của mình nên số liệu không bao giờ bị gán nhầm kỳ).
+ *
+ * Lưu ý "Chờ khách sửa": đây là số case ĐANG treo tại một thời điểm chứ không
+ * phải lượng phát sinh, nên lấy giá trị của ngày mới nhất có dữ liệu trong
+ * tháng — cộng dồn sẽ đếm trùng một case qua nhiều ngày.
+ */
+export async function getBadReviewSummary(
+  selectedMonth?: string,
+): Promise<BadReviewSummary> {
+  const t = schema.reportsBadReview;
+  const [rows, openings] = await Promise.all([
+    db
+      .select({
+        employeeId: t.employeeId,
+        date: t.reportDate,
+        newBad: t.newBad,
+        resolved: t.resolved,
+        star1: t.star1,
+        star2: t.star2,
+        star3: t.star3,
+        shopee: t.shopee,
+        tiktok: t.tiktok,
+        fixed5Total: t.fixed5Total,
+        pendingTotal: t.pendingTotal,
+        noContact: t.noContact,
+        warehouseIssue: t.warehouseIssue,
+        code: schema.employees.code,
+        name: schema.employees.name,
+        shortName: schema.employees.shortName,
+        initials: schema.employees.initials,
+      })
+      .from(t)
+      .leftJoin(schema.employees, eq(t.employeeId, schema.employees.id))
+      .orderBy(desc(t.reportDate)),
+    listOpenings(),
+  ]);
+
+  if (rows.length === 0) return EMPTY_BAD_REVIEW;
+
+  const months = [...new Set(rows.map((r) => monthKey(r.date as string)))].sort(
+    (a, b) => b.localeCompare(a),
+  );
+  const month =
+    selectedMonth && months.includes(selectedMonth) ? selectedMonth : months[0];
+  const monthEnd = month + "-32"; // so sánh chuỗi: mọi ngày trong tháng đều < "-32"
+
+  // Mốc đầu kỳ áp dụng: chỉ cộng net từ mốc đó trở đi, tránh đếm trùng phần
+  // đã nằm sẵn trong số chốt.
+  const opening = openingFor(openings, month);
+  const openingStart = opening
+    ? `${openingKey(opening.year, opening.month)}-01`
+    : null;
+
+  const acc = {
+    newBad: 0,
+    resolved: 0,
+    fixed5: 0,
+    noContact: 0,
+    warehouseIssue: 0,
+    shopee: 0,
+    tiktok: 0,
+    star1: 0,
+    star2: 0,
+    star3: 0,
+  };
+  let tonLuyKe = opening?.balance ?? 0;
+  let pending = 0;
+  let pendingDate = "";
+  const byEmp = new Map<string, BadReviewHandler>();
+
+  for (const r of rows) {
+    const date = r.date as string;
+    const n = r.newBad ?? 0;
+    const s = r.resolved ?? 0;
+
+    // Tồn lũy kế: cộng dồn từ mốc đầu kỳ đến hết tháng đang xem
+    if (date <= monthEnd && (!openingStart || date >= openingStart))
+      tonLuyKe += n - s;
+    if (monthKey(date) !== month) continue;
+
+    acc.newBad += n;
+    acc.resolved += s;
+    acc.fixed5 += r.fixed5Total ?? 0;
+    acc.noContact += r.noContact ?? 0;
+    acc.warehouseIssue += r.warehouseIssue ?? 0;
+    acc.shopee += r.shopee ?? 0;
+    acc.tiktok += r.tiktok ?? 0;
+    acc.star1 += r.star1 ?? 0;
+    acc.star2 += r.star2 ?? 0;
+    acc.star3 += r.star3 ?? 0;
+
+    // Chờ KH sửa = số đang treo ở ngày mới nhất, không cộng dồn
+    if (date > pendingDate) {
+      pendingDate = date;
+      pending = r.pendingTotal ?? 0;
+    }
+
+    const code = r.code ?? (r.employeeId as string);
+    let h = byEmp.get(code);
+    if (!h) {
+      h = {
+        code,
+        name: r.name ?? code,
+        shortName: r.shortName ?? r.name ?? code,
+        initials: r.initials ?? "?",
+        newBad: 0,
+        resolved: 0,
+      };
+      byEmp.set(code, h);
+    }
+    h.newBad += n;
+    h.resolved += s;
+  }
+
+  return {
+    month,
+    monthLabel: monthLabel(month),
+    tonLuyKe,
+    tonDauKy: opening?.balance ?? 0,
+    tonDauKyLabel: opening
+      ? `đầu ${monthLabel(openingKey(opening.year, opening.month))}`
+      : null,
+    threshold: BACKLOG.threshold,
+    warnThreshold: BACKLOG.warnThreshold,
+    goal: SAO_XAU_GOAL_TI_LE_XU_LY,
+    ...acc,
+    tiLeXuLy: ratio(acc.resolved, acc.newBad),
+    pending,
+    handlers: [...byEmp.values()].sort((a, b) => b.resolved - a.resolved),
+  };
 }
 
 /* ------------------------- Dashboard cá nhân ---------------------------- */

@@ -37,6 +37,7 @@ export interface ReportInput {
   /** ISO yyyy-mm-dd */
   date: string;
   values: Record<string, number>;
+  texts?: Record<string, string>;
   note?: string;
 }
 
@@ -89,6 +90,7 @@ export function buildDbRecord(
   date: string,
   values: Record<string, number>,
   note?: string,
+  texts?: Record<string, string>,
 ): Record<string, unknown> {
   const config = CONFIG_BY_TAB[tab];
   const metrics = computeMetrics(config, values);
@@ -100,6 +102,10 @@ export function buildDbRecord(
   };
   for (const f of config.inputs) record[f.key] = values[f.key] ?? 0;
   for (const c of config.computed) record[c.key] = metrics[c.key] ?? 0;
+  for (const t of config.textInputs ?? []) {
+    const v = texts?.[t.key]?.trim();
+    record[t.key] = v ? v : null;
+  }
   return record;
 }
 
@@ -120,11 +126,15 @@ export function toReportRow(
   const config = CONFIG_BY_TAB[tab];
   const values: Record<string, number> = {};
   for (const f of config.inputs) values[f.key] = Number(dbRow[f.key] ?? 0);
+  const texts: Record<string, string> = {};
+  for (const t of config.textInputs ?? [])
+    texts[t.key] = (dbRow[t.key] as string | null) ?? "";
   return {
     id: dbRow.id as string,
     employeeId: idToCode.get(dbRow.employeeId as string) ?? (dbRow.employeeId as string),
     date: dbRow.reportDate as string,
     values,
+    texts: config.textInputs?.length ? texts : undefined,
     note: (dbRow.note as string | null) ?? undefined,
   };
 }

@@ -48,15 +48,19 @@ import { deleteReport, saveReport } from "@/lib/reports/actions";
 function BacklogAlert({
   backlog,
   rows,
+  opening,
 }: {
   backlog: BacklogConfig;
   rows: ReportRow[];
+  /** tồn mang sang từ kỳ trước — không suy ra được từ các dòng trong app */
+  opening: number;
 }) {
-  const total = rows.reduce((sum, r) => sum + backlog.net(r.values), 0);
+  const total =
+    opening + rows.reduce((sum, r) => sum + backlog.net(r.values), 0);
   const level =
     total >= backlog.threshold
       ? "danger"
-      : total >= backlog.threshold * 0.7
+      : total >= backlog.warnThreshold
         ? "warning"
         : "ok";
 
@@ -69,10 +73,10 @@ function BacklogAlert({
   const Icon = level === "ok" ? ShieldCheck : TriangleAlert;
   const message =
     level === "danger"
-      ? `Vượt ngưỡng ${backlog.threshold} — cần xử lý gấp!`
+      ? `Vượt ngưỡng đỏ ${backlog.threshold} — cần xử lý gấp!`
       : level === "warning"
-        ? `Gần chạm ngưỡng ${backlog.threshold} — theo dõi sát.`
-        : `Trong ngưỡng an toàn (< ${backlog.threshold}).`;
+        ? `Qua ngưỡng vàng ${backlog.warnThreshold} — theo dõi sát.`
+        : `Trong ngưỡng an toàn (< ${backlog.warnThreshold}).`;
 
   return (
     <div className={cn("flex items-center gap-4 rounded-lg border p-4", styles)}>
@@ -85,6 +89,11 @@ function BacklogAlert({
             / {backlog.threshold} {backlog.unit}
           </span>
         </p>
+        {opening > 0 && (
+          <p className="text-xs opacity-80">
+            gồm {formatNumber(opening)} mang sang từ kỳ trước
+          </p>
+        )}
       </div>
       <p className="hidden max-w-[220px] text-right text-sm font-medium sm:block">
         {message}
@@ -96,9 +105,11 @@ function BacklogAlert({
 interface ReportTabProps {
   tab: ConfigTab;
   initialRows: ReportRow[];
+  /** tồn đầu kỳ mang sang (chỉ tab có backlog dùng tới) */
+  opening?: number;
 }
 
-export function ReportTab({ tab, initialRows }: ReportTabProps) {
+export function ReportTab({ tab, initialRows, opening = 0 }: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
   const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
@@ -147,6 +158,7 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
         employeeCode: row.employeeId,
         date: row.date,
         values: row.values,
+        texts: row.texts,
         note: row.note,
       });
       mergeSaved(saved, editing?.id);
@@ -223,7 +235,13 @@ export function ReportTab({ tab, initialRows }: ReportTabProps) {
 
       <DateRangeFilter range={range} setRange={setRange} active={active} />
 
-      {config.backlog && <BacklogAlert backlog={config.backlog} rows={sorted} />}
+      {config.backlog && (
+        <BacklogAlert
+          backlog={config.backlog}
+          rows={sorted}
+          opening={opening}
+        />
+      )}
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -409,10 +427,35 @@ function RowDetail({ config, row }: { config: ReportConfig; row: ReportRow }) {
         </div>
       </div>
 
+      {config.textInputs?.map((t) => {
+        const value = row.texts?.[t.key];
+        if (!value) return null;
+        const isLink = /^https?:\/\//i.test(value);
+        return (
+          <div key={t.key}>
+            <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t.label}
+            </p>
+            {isLink ? (
+              <a
+                href={value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-sm text-brand-600 hover:underline"
+              >
+                {value}
+              </a>
+            ) : (
+              <p className="whitespace-pre-line text-sm">{value}</p>
+            )}
+          </div>
+        );
+      })}
+
       {row.note && (
         <div>
           <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Ghi chú
+            {config.noteLabel ?? "Ghi chú"}
           </p>
           <p className="text-sm">{row.note}</p>
         </div>

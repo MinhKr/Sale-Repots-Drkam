@@ -1,0 +1,1 @@
+ALTER TABLE "reports_bad_review" DROP COLUMN "lazada";
