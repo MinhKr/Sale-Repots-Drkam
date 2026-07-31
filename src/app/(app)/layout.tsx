@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/shell/app-shell";
 import type { SessionUser } from "@/components/shell/user-menu";
 import { getCurrentUser } from "@/lib/auth";
+import { visibleTabs } from "@/lib/permissions";
 import { DEPT_LABEL, REGION_LABEL } from "@/lib/mock/employees";
 
 /** Tên/email hiện ở góc trên bên phải — theo đúng tài khoản đang đăng nhập. */
@@ -41,8 +42,17 @@ export default async function AppLayout({
     me.employee?.role === "LEAD" ||
     me.employee?.dept === "ADMIN";
 
+  const allowedTabs = visibleTabs({
+    isManager: me.isManager,
+    employee: me.employee,
+  });
+
   return (
-    <AppShell isManager={isManager} user={toSessionUser(me)}>
+    <AppShell
+      isManager={isManager}
+      allowedTabs={allowedTabs}
+      user={toSessionUser(me)}
+    >
       {children}
     </AppShell>
   );

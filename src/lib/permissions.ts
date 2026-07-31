@@ -4,8 +4,9 @@ import type { DeptCode, Employment, Region, Role } from "@/lib/mock/types";
 /**
  * Quy tắc phân quyền NHẬP báo cáo (PM chốt 2026-07-31).
  *
- * Nguyên tắc chung: **ai cũng XEM được mọi báo cáo**, nhưng quyền NHẬP/SỬA/XÓA
- * bị giới hạn theo bộ phận:
+ * Nguyên tắc chung (siết lại 2026-07-31c): nhân viên thường **chỉ THẤY dữ
+ * liệu của chính mình** — xem gì thì sửa được nấy, không xem được của người
+ * khác. Lead / Admin / tài khoản chung vẫn thấy và sửa toàn bộ.
  *
  *  - Sale  → NV bộ phận Sale, chỉ nhập dòng CỦA CHÍNH MÌNH
  *  - CSKH  → NV bộ phận CSKH, chỉ nhập dòng CỦA CHÍNH MÌNH
@@ -97,6 +98,43 @@ export function editableEmployees<T extends EmployeeLike>(
   return eligible.filter((e) => e.id === me.id);
 }
 
+/**
+ * Danh sách nhân viên mà `actor` được phép XEM báo cáo, ở 1 tab.
+ *
+ * = phạm vi được sửa, **cộng thêm chính mình**. Phần "cộng thêm" là bắt buộc:
+ * Livestream part-time không được sửa gì (fulltime nhập hộ) nhưng vẫn phải
+ * xem được số liệu của chính họ, nếu không trang sẽ trống trơn.
+ */
+export function visibleEmployees<T extends EmployeeLike>(
+  actor: Actor,
+  tab: ConfigTab,
+  employees: T[],
+): T[] {
+  if (hasFullAccess(actor)) return employees;
+
+  const editable = editableEmployees(actor, tab, employees);
+  const me = actor.employee;
+  if (!me) return editable;
+
+  const seen = new Set(editable.map((e) => e.id));
+  const config = CONFIG_BY_TAB[tab];
+  const self = employees.filter(
+    (e) =>
+      e.id === me.id && !seen.has(e.id) && config.allowedDepts.includes(e.dept),
+  );
+  return [...editable, ...self];
+}
+
+/** Các tab báo cáo `actor` được vào. Nhân viên thường chỉ có tab bộ phận mình. */
+export function visibleTabs(actor: Actor): ConfigTab[] {
+  const all: ConfigTab[] = ["SALE", "CSKH", "SAO_XAU", "LIVESTREAM"];
+  if (hasFullAccess(actor)) return all;
+
+  const me = actor.employee;
+  if (!me) return [];
+  return all.filter((t) => TAB_OWNER_DEPTS[t].includes(me.dept));
+}
+
 /** Có được nhập gì ở tab này không (dùng để ẩn nút "Nhập báo cáo"). */
 export function canEditTab<T extends EmployeeLike>(
   actor: Actor,
@@ -124,13 +162,13 @@ export function whyReadOnly(actor: Actor, tab: ConfigTab): string {
   if (!me) return "Tài khoản của bạn chỉ được xem báo cáo ở mục này.";
 
   if (tab === "LIVESTREAM" && me.dept === "LIVESTREAM" && me.employment !== "FT")
-    return "Chỉ nhân viên Livestream fulltime mới nhập được báo cáo. Bạn vẫn xem được toàn bộ số liệu.";
+    return "Bạn là Livestream part-time nên không nhập báo cáo — bạn fulltime cùng miền nhập hộ.";
 
   if (tab === "SAO_XAU")
-    return "Báo cáo Sao Xấu do Admin và Lead nhập. Bạn vẫn xem được toàn bộ số liệu.";
+    return "Báo cáo Sao Xấu do Admin và Lead phụ trách.";
 
   const owner = TAB_OWNER_DEPTS[tab][0];
   const label =
     owner === "SALE" ? "Sale" : owner === "CSKH" ? "CSKH" : "Livestream";
-  return `Chỉ nhân viên bộ phận ${label} mới nhập được báo cáo này. Bạn vẫn xem được toàn bộ số liệu.`;
+  return `Chỉ nhân viên bộ phận ${label} mới nhập được báo cáo này.`;
 }

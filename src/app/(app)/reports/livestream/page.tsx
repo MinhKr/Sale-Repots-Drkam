@@ -1,15 +1,17 @@
+import { notFound } from "next/navigation";
 import { LivestreamTab } from "@/components/reports/livestream-tab";
 import { listReports } from "@/lib/reports/queries";
-import { loadTabPermission } from "@/lib/reports/guard";
+import { loadTabAccess } from "@/lib/reports/guard";
 
 export const metadata = { title: "Báo cáo Livestream" };
 // Luôn render theo request (dữ liệu báo cáo thật, không prerender tĩnh).
 export const dynamic = "force-dynamic";
 
 export default async function LivestreamReportPage() {
-  const [rows, perm] = await Promise.all([
-    listReports("LIVESTREAM"),
-    loadTabPermission("LIVESTREAM"),
-  ]);
-  return <LivestreamTab initialRows={rows} perm={perm} />;
+  // Nhân viên chỉ vào được tab của bộ phận mình.
+  const access = await loadTabAccess("LIVESTREAM");
+  if (!access.canView) notFound();
+
+  const rows = await listReports("LIVESTREAM", access.visibleIds);
+  return <LivestreamTab initialRows={rows} perm={access.perm} />;
 }

@@ -10,15 +10,19 @@ import {
 import { Header } from "./header";
 import { SidebarBrand, SidebarNav } from "./sidebar";
 import type { SessionUser } from "./user-menu";
+import type { ConfigTab } from "@/lib/mock/reports";
 
 export function AppShell({
   children,
   isManager = false,
+  allowedTabs = [],
   user,
 }: {
   children: React.ReactNode;
   /** Quyết định có hiện các mục menu dành riêng cho quản lý hay không */
   isManager?: boolean;
+  /** Tab báo cáo được vào — NV thường chỉ thấy tab bộ phận mình */
+  allowedTabs?: ConfigTab[];
   /** Danh tính người đang đăng nhập — hiện ở góc trên bên phải */
   user: SessionUser;
 }) {
@@ -29,7 +33,7 @@ export function AppShell({
       {/* Sidebar cố định — desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-sidebar lg:flex">
         <SidebarBrand />
-        <SidebarNav isManager={isManager} />
+        <SidebarNav isManager={isManager} allowedTabs={allowedTabs} />
       </aside>
 
       {/* Sidebar dạng Sheet — mobile */}
@@ -44,6 +48,7 @@ export function AppShell({
           <SidebarBrand />
           <SidebarNav
             isManager={isManager}
+            allowedTabs={allowedTabs}
             onNavigate={() => setMobileOpen(false)}
           />
         </SheetContent>

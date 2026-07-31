@@ -27,12 +27,16 @@ import {
 } from "@/components/ui/select";
 import { StatTile } from "./stat-tile";
 import { StatusBadge } from "./status-badge";
+import { MonthTargetCard } from "./month-target-card";
 import { PageHeader } from "@/components/page-header";
 import type { PersonalData } from "@/lib/dashboard/queries";
+import type { MetricGroup } from "@/lib/dashboard/personal-metrics";
+import { cn } from "@/lib/utils";
 import { DEPT_LABEL } from "@/lib/mock/employees";
 import {
   formatCompactVnd,
   formatCurrency,
+  formatMetric,
   formatPercent,
 } from "@/lib/format";
 
@@ -72,19 +76,32 @@ function ChartTooltip({
   );
 }
 
-export function PersonalDashboard({ data }: { data: PersonalData[] }) {
+export function PersonalDashboard({
+  data,
+  metricsByCode,
+  monthLabel,
+  lockedToSelf,
+}: {
+  data: PersonalData[];
+  /** code nhân viên → các khối chỉ số theo tab, tổng hợp cả tháng */
+  metricsByCode: Record<string, MetricGroup[]>;
+  monthLabel: string;
+  /** Nhân viên thường: khóa vào chính họ, không có ô chọn người khác */
+  lockedToSelf: boolean;
+}) {
   const items: Record<string, string> = Object.fromEntries(
     data.map((d) => [d.code, `${d.name} · ${DEPT_LABEL[d.dept]}`]),
   );
   const [empCode, setEmpCode] = useState(data[0]?.code ?? "");
   const d = data.find((x) => x.code === empCode) ?? data[0];
+  const groups = d ? (metricsByCode[d.code] ?? []) : [];
 
   if (!d) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
         <PageHeader
           title="Dashboard cá nhân"
-          description="Chọn nhân viên để xem chi tiết KPI"
+          description="Chưa có số liệu"
         />
         <Card className="p-8 text-center text-sm text-muted-foreground">
           Chưa có dữ liệu báo cáo để hiển thị.
@@ -98,8 +115,13 @@ export function PersonalDashboard({ data }: { data: PersonalData[] }) {
       {/* Chọn nhân viên */}
       <PageHeader
         title="Dashboard cá nhân"
-        description="Chọn nhân viên để xem chi tiết KPI"
+        description={
+          lockedToSelf
+            ? `Chỉ số của bạn · ${monthLabel}`
+            : `Chọn nhân viên để xem chi tiết KPI · ${monthLabel}`
+        }
         action={
+          lockedToSelf ? null : (
           <Select
             value={empCode}
             onValueChange={(v) => setEmpCode(v ?? d.code)}
@@ -116,7 +138,15 @@ export function PersonalDashboard({ data }: { data: PersonalData[] }) {
               ))}
             </SelectContent>
           </Select>
+          )
         }
+      />
+
+      {/* Thanh tiến trình doanh thu — chỉ của người này */}
+      <MonthTargetCard
+        achieved={d.revenue}
+        target={d.target}
+        period={`${d.shortName} · ${monthLabel}`}
       />
 
       {/* Header nhân viên */}
@@ -229,6 +259,47 @@ export function PersonalDashboard({ data }: { data: PersonalData[] }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Toàn bộ chỉ số trong tháng, gom theo tab người này nhập */}
+      {groups.map((g) => (
+        <Card key={g.tab}>
+          <CardHeader>
+            <CardTitle className="font-heading text-base">
+              Chỉ số {g.title} · {monthLabel}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tổng hợp từ {g.reportCount} báo cáo đã nhập
+            </p>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+              {g.metrics.map((m) => (
+                <div
+                  key={m.key}
+                  className={cn(
+                    "rounded-lg border p-3",
+                    // Ô tự tính tô xanh cho khớp quy ước ở form nhập báo cáo
+                    m.computed
+                      ? "border-brand-100 bg-brand-50/40"
+                      : "border-border",
+                  )}
+                >
+                  <dt className="text-xs text-muted-foreground">{m.label}</dt>
+                  <dd className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                    {formatMetric(m.value, m.kind)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+      ))}
+
+      {groups.length === 0 && (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          Chưa có báo cáo nào trong {monthLabel}.
+        </Card>
+      )}
     </div>
   );
 }

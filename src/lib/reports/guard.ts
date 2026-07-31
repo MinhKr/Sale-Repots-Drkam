@@ -2,6 +2,8 @@ import { db, schema } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
   editableEmployees,
+  visibleEmployees,
+  visibleTabs,
   whyReadOnly,
   type Actor,
   type EmployeeLike,
@@ -71,26 +73,46 @@ export interface TabPermission {
   editableCodes: string[];
   /** Lý do chỉ-được-xem, null nếu có quyền nhập */
   readOnlyReason: string | null;
+  /** Có thấy dữ liệu của người khác không (Lead/Admin) — để đổi câu mô tả */
+  seesEveryone: boolean;
+}
+
+export interface TabAccess {
+  /** Được vào tab này không. false → trang trả 404. */
+  canView: boolean;
+  /** uuid các nhân viên được XEM — dùng để lọc truy vấn ở server */
+  visibleIds: string[];
+  perm: TabPermission;
 }
 
 /**
- * Quyền của người đang đăng nhập ở 1 tab, dạng gọn để truyền xuống client.
- * Dùng cho Server Component của các trang báo cáo.
+ * Quyền của người đang đăng nhập ở 1 tab. Dùng cho Server Component của các
+ * trang báo cáo: quyết định có cho vào không, lọc dữ liệu, và truyền phần
+ * gọn xuống client để ẩn nút.
  */
-export async function loadTabPermission(
-  tab: ConfigTab,
-): Promise<TabPermission> {
+export async function loadTabAccess(tab: ConfigTab): Promise<TabAccess> {
   const current = await getCurrentUser();
   const actor: Actor = {
     isManager: current.isManager,
     employee: current.employee,
   };
   const employees = await loadPermEmployees();
-  const allowed = editableEmployees(actor, tab, employees);
+
+  const canView = visibleTabs(actor).includes(tab);
+  const visible = visibleEmployees(actor, tab, employees);
+  const editable = editableEmployees(actor, tab, employees);
+  const seesEveryone = visible.length === employees.length;
 
   return {
-    editableCodes: allowed.map((e) => e.code).filter((c): c is string => !!c),
-    readOnlyReason: allowed.length ? null : whyReadOnly(actor, tab),
+    canView,
+    visibleIds: visible.map((e) => e.id),
+    perm: {
+      editableCodes: editable
+        .map((e) => e.code)
+        .filter((c): c is string => !!c),
+      readOnlyReason: editable.length ? null : whyReadOnly(actor, tab),
+      seesEveryone,
+    },
   };
 }
 
