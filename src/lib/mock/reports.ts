@@ -293,55 +293,12 @@ export const LIVESTREAM_CONFIG: ReportConfig = {
   ],
 };
 
-/* ============================ TAB MKT ============================ */
-// reports_marketing — Lead nhập hộ. Form đơn giản.
-
-export const MKT_CONFIG: ReportConfig = {
-  tab: "MKT",
-  title: "Marketing",
-  allowedDepts: ["MKT", "ADMIN", "LEAD"],
-  inputs: [
-    { key: "adSpend", label: "Chi phí quảng cáo", kind: "money", group: "Chi phí" },
-    { key: "reach", label: "Tiếp cận", kind: "int", group: "Hiệu quả" },
-    { key: "messages", label: "Tin nhắn về", kind: "int", group: "Hiệu quả" },
-    { key: "leads", label: "Lead", kind: "int", group: "Hiệu quả" },
-    { key: "revenue", label: "Doanh thu từ MKT", kind: "money", group: "Kết quả" },
-  ],
-  computed: [
-    {
-      key: "cpl",
-      label: "Chi phí / lead",
-      kind: "money",
-      compute: (v) => Math.round(ratio(v.adSpend, v.leads)),
-    },
-    {
-      key: "cpm",
-      label: "Chi phí / tin nhắn",
-      kind: "money",
-      compute: (v) => Math.round(ratio(v.adSpend, v.messages)),
-    },
-    {
-      key: "roas",
-      label: "ROAS",
-      kind: "percent",
-      compute: (v) => ratio(v.revenue, v.adSpend),
-    },
-  ],
-  tableMetrics: [
-    { key: "adSpend", label: "Chi phí", kind: "money" },
-    { key: "leads", label: "Lead", kind: "int" },
-    { key: "revenue", label: "Doanh thu", kind: "money" },
-    { key: "roas", label: "ROAS", kind: "percent" },
-  ],
-};
-
 /** Registry config theo tab — dùng ở client để tránh truyền hàm qua ranh giới server/client */
 export const CONFIG_BY_TAB = {
   SALE: SALE_CONFIG,
   CSKH: CSKH_CONFIG,
   SAO_XAU: SAO_XAU_CONFIG,
   LIVESTREAM: LIVESTREAM_CONFIG,
-  MKT: MKT_CONFIG,
 } as const;
 
 export type ConfigTab = keyof typeof CONFIG_BY_TAB;
@@ -467,20 +424,4 @@ export const LIVESTREAM_SEED: ReportRow[] = [
   { id: "l-10", employeeId: "live-vy-mn", date: "2026-07-12", values: { sessions: 1, hours: 2, buyers: 38, revenue: 1_400_000 } },
   { id: "l-11", employeeId: "live-thuy", date: "2026-07-12", values: { sessions: 2, hours: 4.5, buyers: 105, revenue: 4_800_000 } },
   { id: "l-12", employeeId: "live-binh", date: "2026-07-12", values: { sessions: 1, hours: 3, buyers: 60, revenue: 2_400_000 } },
-];
-
-export const MKT_SEED: ReportRow[] = [
-  {
-    id: "m-1",
-    employeeId: "mkt-ha",
-    date: "2026-07-13",
-    values: { adSpend: 4_500_000, reach: 82_000, messages: 340, leads: 60, revenue: 15_300_000 },
-    note: "Đẩy chiến dịch mẫu mới trên TikTok Ads.",
-  },
-  {
-    id: "m-2",
-    employeeId: "mkt-ha",
-    date: "2026-07-12",
-    values: { adSpend: 3_800_000, reach: 70_000, messages: 290, leads: 48, revenue: 12_100_000 },
-  },
 ];

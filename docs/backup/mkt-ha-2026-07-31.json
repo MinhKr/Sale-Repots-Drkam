@@ -1,0 +1,62 @@
+{
+  "employees": [
+    {
+      "id": "a1f76e31-6d23-4055-ac31-87547f1f06c3",
+      "code": "mkt-ha",
+      "name": "Nguyễn Thị Hà",
+      "dept": "MKT",
+      "role": "STAFF",
+      "initials": "Hà",
+      "active": true,
+      "auth_user_id": null,
+      "created_at": "2026-07-16 09:04:12.820365+00",
+      "short_name": "Hà"
+    }
+  ],
+  "reports_marketing": [
+    {
+      "id": "94c41c5f-c005-496c-9143-d3b0f60add4b",
+      "employee_id": "a1f76e31-6d23-4055-ac31-87547f1f06c3",
+      "report_date": "2026-07-13",
+      "ad_spend": "4500000",
+      "reach": 82000,
+      "messages": 340,
+      "leads": 60,
+      "revenue": "15300000",
+      "cpl": "75000",
+      "cpm": "13235",
+      "roas": "3.4000",
+      "note": "Đẩy chiến dịch mẫu mới trên TikTok Ads.",
+      "created_at": "2026-07-16 09:04:13.308631+00",
+      "updated_at": "2026-07-16 09:04:13.308631+00"
+    },
+    {
+      "id": "227425b5-fc98-4320-be9d-fc66e1b41b2a",
+      "employee_id": "a1f76e31-6d23-4055-ac31-87547f1f06c3",
+      "report_date": "2026-07-12",
+      "ad_spend": "3800000",
+      "reach": 70000,
+      "messages": 290,
+      "leads": 48,
+      "revenue": "12100000",
+      "cpl": "79167",
+      "cpm": "13103",
+      "roas": "3.1842",
+      "note": null,
+      "created_at": "2026-07-16 09:04:13.308631+00",
+      "updated_at": "2026-07-16 09:04:13.308631+00"
+    }
+  ],
+  "kpi_config": [
+    {
+      "id": "8fd88e42-5047-4255-b52c-baab1ef8483b",
+      "year": 2026,
+      "month": 7,
+      "employee_id": "a1f76e31-6d23-4055-ac31-87547f1f06c3",
+      "target_revenue": "600000000",
+      "warning_threshold": 80,
+      "created_at": "2026-07-16 09:04:13.405796+00",
+      "updated_at": "2026-07-22 08:59:54.065+00"
+    }
+  ]
+}

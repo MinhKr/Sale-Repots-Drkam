@@ -56,7 +56,6 @@ const REVENUE_BY_EMP: Array<[string, number, number]> = [
   ["live-binh", 0, 90_000_000],
   // Diệu Linh: NV mới, chưa có số liệu — để trống tới khi nhập thật (badge "Chưa nhập")
   ["live-dieu-linh", 0, 90_000_000],
-  ["mkt-ha", 63_300_000, 60_000_000],
 ];
 
 /** Bảng xếp hạng nhân viên theo doanh thu tháng (đã sort giảm dần) */

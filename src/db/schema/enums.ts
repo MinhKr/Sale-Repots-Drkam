@@ -5,7 +5,11 @@ import { pgEnum } from "drizzle-orm/pg-core";
  * Giữ đúng tên value để seed từ mock không phải map lại.
  */
 
-/** Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead) */
+/**
+ * Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead).
+ * "MKT" đã ngưng dùng từ 2026-07-31 (không còn NV nào) nhưng giữ trong enum:
+ * Postgres không xóa được value của enum, và bỏ đi sẽ sinh migration lỗi.
+ */
 export const deptEnum = pgEnum("dept", ["SALE", "CSKH", "LIVESTREAM", "MKT", "ADMIN", "LEAD"]);
 
 /** Vai trò */

@@ -30,12 +30,10 @@ import {
   CSKH_CONFIG,
   SAO_XAU_CONFIG,
   LIVESTREAM_CONFIG,
-  MKT_CONFIG,
   SALE_SEED,
   CSKH_SEED,
   SAO_XAU_SEED,
   LIVESTREAM_SEED,
-  MKT_SEED,
   TODAY_ISO,
   computeMetrics,
   type ReportConfig,
@@ -58,6 +56,8 @@ async function main() {
   await db.delete(reportsCskh);
   await db.delete(reportsBadReview);
   await db.delete(reportsLivestream);
+  // Marketing đã gỡ khỏi app (2026-07-31) và không còn seed. Vẫn dọn bảng này để
+  // các DB cũ còn sót dòng MKT không làm vỡ FK khi xóa employees bên dưới.
   await db.delete(reportsMarketing);
   await db.delete(employees);
   console.log("🧹 Đã xóa dữ liệu cũ.");
@@ -121,11 +121,8 @@ async function main() {
     .values(
       buildReportRows(LIVESTREAM_CONFIG, LIVESTREAM_SEED) as (typeof reportsLivestream.$inferInsert)[],
     );
-  await db
-    .insert(reportsMarketing)
-    .values(buildReportRows(MKT_CONFIG, MKT_SEED) as (typeof reportsMarketing.$inferInsert)[]);
   console.log(
-    `📊 Báo cáo: sale ${SALE_SEED.length} · cskh ${CSKH_SEED.length} · sao_xau ${SAO_XAU_SEED.length} · live ${LIVESTREAM_SEED.length} · mkt ${MKT_SEED.length}`,
+    `📊 Báo cáo: sale ${SALE_SEED.length} · cskh ${CSKH_SEED.length} · sao_xau ${SAO_XAU_SEED.length} · live ${LIVESTREAM_SEED.length}`,
   );
 
   // 4) KPI config — cho tháng của TODAY_ISO (vd 2026-07).

@@ -17,12 +17,11 @@ import {
   computeMetrics,
   emptyTexts,
   emptyValues,
-  TODAY_ISO,
   type ReportConfig,
   type ReportRow,
 } from "@/lib/mock/reports";
 import { EMPLOYEES } from "@/lib/mock/employees";
-import { formatMetric } from "@/lib/format";
+import { formatMetric, todayIso } from "@/lib/format";
 import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +54,8 @@ export function ReportForm({
   const [employeeId, setEmployeeId] = useState(
     initial?.employeeId ?? employees[0]?.id ?? "",
   );
-  const [date, setDate] = useState(initial?.date ?? TODAY_ISO);
+  // Tạo mới → mặc định ngày hôm nay (form remount mỗi lần mở dialog nên luôn cập nhật)
+  const [date, setDate] = useState(initial?.date ?? todayIso());
   const [values, setValues] = useState<Record<string, number>>(
     initial ? { ...initial.values } : emptyValues(config),
   );

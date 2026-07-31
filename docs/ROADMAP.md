@@ -24,14 +24,15 @@
 | `LIVESTREAM` | Nguyễn Thị Thanh Thúy | Thanh Thúy MN | fulltime MN |
 | `LIVESTREAM` | Trần Thanh Vy | Vy MN | parttime MN |
 | `LIVESTREAM` | Trần Thị Thu Trang | Trang MN | parttime MN |
-| `MKT` | Nguyễn Thị Hà | Hà | marketing ads |
 | `LEAD` | Lê Hoài Ly | Ly | Leader / BGĐ |
 
-**Tổng:** Sale 1 · CSKH 2 · Admin 1 · Livestream **7** · MKT 1 · Lead 1 = 13.
+**Tổng:** Sale 1 · CSKH 2 · Admin 1 · Livestream **7** · Lead 1 = 12.
 
+> **Cập nhật 2026-07-31:** gỡ **Nguyễn Thị Hà** (`mkt-ha`) và **toàn bộ bộ phận MKT** khỏi app theo yêu cầu PM — Hà là NV Marketing duy nhất nên tab Marketing không còn ý nghĩa. Đã xóa: menu sidebar, trang `/reports/mkt`, `MKT_CONFIG`/`MKT_SEED`, MKT khỏi `DeptCode`/`ReportTab`/`KPI_DEPTS`, nhánh UNION doanh thu MKT ở dashboard. Trong DB đã xóa 1 dòng `employees` + 2 dòng `reports_marketing` + 1 dòng `kpi_config` (sao lưu: `docs/backup/mkt-ha-2026-07-31.json`). **Giữ lại có chủ ý:** bảng `reports_marketing` trong Drizzle schema (bỏ đi thì `db:generate` sẽ sinh migration DROP TABLE) và value `MKT` trong `deptEnum` (Postgres không xóa được value của enum).
+>
 > **Cập nhật 2026-07-20:** Hương chuyển sang dept **ADMIN** (migration `0003_add_admin_dept`, cập nhật không xóa dữ liệu). Miền (MB/MN) + FT/PT của Livestream **đã lưu ở mock + hiển thị nhãn** (chưa lưu DB). Tab **Sale** chỉ còn chọn Sale + Admin + Lead (bỏ CSKH).
 >
-> CSKH có thể nhập cả tab **Sao Xấu**. Livestream + MKT do **Lead nhập hộ**.
+> CSKH có thể nhập cả tab **Sao Xấu**. Livestream do **Lead nhập hộ**.
 >
 > **Tên hiển thị** (`short_name`) có hậu tố phân biệt vì dễ nhầm: *Phượng* (Sale) vs *Phương* (CSKH); *Thủy MB* (Nguyễn Thu Thủy) vs *Thanh Thúy MN* (Nguyễn Thị Thanh Thúy). Bảng/dashboard dùng tên hiển thị; hồ sơ cá nhân + user menu dùng họ tên đầy đủ.
 >

@@ -5,7 +5,6 @@ import {
   Headset,
   Star,
   Radio,
-  Megaphone,
   UserRound,
   Workflow,
   Target,
@@ -24,7 +23,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Cấu trúc điều hướng — 11 màn theo lộ trình */
+/** Cấu trúc điều hướng — 10 màn theo lộ trình (Marketing đã gỡ 2026-07-31) */
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: null,
@@ -37,7 +36,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "CSKH", href: "/reports/cskh", icon: Headset },
       { label: "Sao Xấu", href: "/reports/sao-xau", icon: Star },
       { label: "Livestream", href: "/reports/livestream", icon: Radio },
-      { label: "Marketing", href: "/reports/mkt", icon: Megaphone },
     ],
   },
   {

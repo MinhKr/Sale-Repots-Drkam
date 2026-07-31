@@ -7,7 +7,7 @@ import {
 } from "@/lib/mock/reports";
 
 /**
- * Hạ tầng dùng chung cho đọc/ghi 5 loại báo cáo (P9 — dữ liệu thật).
+ * Hạ tầng dùng chung cho đọc/ghi 4 loại báo cáo (P9 — dữ liệu thật).
  *
  * Ánh xạ tab → bảng Drizzle. Tên field trong schema TRÙNG KHỚP key trong
  * config (mock/reports.ts): messReceived, tongDon, ... nên có thể build
@@ -23,7 +23,6 @@ export const REPORT_TABLES = {
   CSKH: schema.reportsCskh,
   SAO_XAU: schema.reportsBadReview,
   LIVESTREAM: schema.reportsLivestream,
-  MKT: schema.reportsMarketing,
 } as const satisfies Record<ConfigTab, unknown>;
 
 export function reportTable(tab: ConfigTab) {

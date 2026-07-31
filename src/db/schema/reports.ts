@@ -213,7 +213,11 @@ export const reportsLivestream = pgTable(
   (t) => [unique("uq_live_emp_date").on(t.employeeId, t.reportDate)],
 );
 
-/* ========================= reports_marketing ========================= */
+/* ========================= reports_marketing =========================
+ * NGƯNG SỬ DỤNG từ 2026-07-31: bộ phận Marketing đã gỡ khỏi app (không còn
+ * menu, trang nhập hay tab báo cáo). Bảng vẫn khai báo ở đây để drizzle-kit
+ * không sinh migration DROP TABLE; dữ liệu cũ đã xóa (xem docs/backup/).
+ * ==================================================================== */
 export const reportsMarketing = pgTable(
   "reports_marketing",
   {

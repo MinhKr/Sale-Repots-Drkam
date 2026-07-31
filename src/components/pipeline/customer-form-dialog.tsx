@@ -27,6 +27,7 @@ import {
   type WholesaleStage,
 } from "@/lib/mock/wholesale";
 import { DEPT_LABEL, EMPLOYEES } from "@/lib/mock/employees";
+import { todayIso } from "@/lib/format";
 
 /** NV có thể phụ trách khách sỉ (Sale · CSKH · Admin · Lead). */
 const ASSIGNEE_OPTIONS = EMPLOYEES.filter(
@@ -84,10 +85,6 @@ export function CustomerFormDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function CustomerForm({

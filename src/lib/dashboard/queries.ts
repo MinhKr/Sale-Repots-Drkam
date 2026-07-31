@@ -15,8 +15,8 @@ import type {
 } from "@/lib/mock/types";
 
 /**
- * Tầng dữ liệu Dashboard (P10) — tổng hợp doanh thu THẬT từ 4 bảng báo cáo có
- * doanh thu (Sale, CSKH, Livestream, MKT).
+ * Tầng dữ liệu Dashboard (P10) — tổng hợp doanh thu THẬT từ 3 bảng báo cáo có
+ * doanh thu (Sale, CSKH, Livestream).
  *
  * "Mốc ngày" (anchor) = ngày báo cáo MỚI NHẤT có trong DB (PM chốt), nên
  * "hôm qua / tuần này / tháng này" luôn có số cả ở demo lẫn production.
@@ -75,7 +75,7 @@ interface Base {
   month: string | null;
 }
 
-/** UNION ALL 4 bảng doanh thu về (employeeId, date, rev) — 1 round-trip. */
+/** UNION ALL 3 bảng doanh thu về (employeeId, date, rev) — 1 round-trip. */
 async function loadRevenueRows() {
   const s = schema;
   const q1 = db
@@ -99,14 +99,7 @@ async function loadRevenueRows() {
       rev: s.reportsLivestream.revenue,
     })
     .from(s.reportsLivestream);
-  const q4 = db
-    .select({
-      employeeId: s.reportsMarketing.employeeId,
-      date: s.reportsMarketing.reportDate,
-      rev: s.reportsMarketing.revenue,
-    })
-    .from(s.reportsMarketing);
-  return q1.unionAll(q2).unionAll(q3).unionAll(q4);
+  return q1.unionAll(q2).unionAll(q3);
 }
 
 /**
