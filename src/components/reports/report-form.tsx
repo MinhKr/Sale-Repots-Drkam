@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 interface ReportFormProps {
   config: ReportConfig;
+  /** `code` các nhân viên người đang đăng nhập được nhập hộ */
+  editableCodes: string[];
   /** null = tạo mới; có giá trị = sửa */
   initial: ReportRow | null;
   /** đang lưu xuống server — khóa nút để tránh double submit */
@@ -37,15 +39,22 @@ interface ReportFormProps {
 
 export function ReportForm({
   config,
+  editableCodes,
   initial,
   pending,
   onSubmit,
   onCancel,
 }: ReportFormProps) {
-  const employees = useMemo(
-    () => EMPLOYEES.filter((e) => config.allowedDepts.includes(e.dept)),
-    [config],
-  );
+  // Chỉ liệt kê nhân viên mà người đang đăng nhập được nhập hộ. Khi sửa 1 dòng
+  // cũ thì luôn giữ lại chính nhân viên đó để ô chọn không bị trống.
+  const employees = useMemo(() => {
+    const allowed = new Set(editableCodes);
+    return EMPLOYEES.filter(
+      (e) =>
+        config.allowedDepts.includes(e.dept) &&
+        (allowed.has(e.id) || e.id === initial?.employeeId),
+    );
+  }, [config, editableCodes, initial?.employeeId]);
   const employeeItems = useMemo(
     () => Object.fromEntries(employees.map((e) => [e.id, e.shortName])),
     [employees],

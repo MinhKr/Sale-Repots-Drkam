@@ -1,7 +1,14 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
-import { ClipboardPaste, Loader2, Pencil, Trash2, Users } from "lucide-react";
+import {
+  ClipboardPaste,
+  Eye,
+  Loader2,
+  Pencil,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -48,6 +55,7 @@ import {
   saveLivestreamDay,
   saveReport,
 } from "@/lib/reports/actions";
+import type { TabPermission } from "@/lib/reports/guard";
 
 const config = CONFIG_BY_TAB.LIVESTREAM;
 const STAFF = employeesByDept("LIVESTREAM");
@@ -55,24 +63,35 @@ const FIELDS = config.inputs;
 
 type ValMap = Record<string, Record<string, number>>;
 
-function zeros(): ValMap {
+function zeros(staff: typeof STAFF): ValMap {
   return Object.fromEntries(
-    STAFF.map((s) => [s.id, Object.fromEntries(FIELDS.map((f) => [f.key, 0]))]),
+    staff.map((s) => [s.id, Object.fromEntries(FIELDS.map((f) => [f.key, 0]))]),
   );
 }
 
-export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
+export function LivestreamTab({
+  initialRows,
+  perm,
+}: {
+  initialRows: ReportRow[];
+  perm: TabPermission;
+}) {
+  // Chỉ nhập được cho mình + parttime cùng miền (server tự chặn lại lần nữa).
+  const editable = new Set(perm.editableCodes);
+  const staff = STAFF.filter((s) => editable.has(s.id));
+  const canEditAny = staff.length > 0;
+
   const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(todayIso);
-  const [vals, setVals] = useState<ValMap>(zeros);
+  const [vals, setVals] = useState<ValMap>(() => zeros(staff));
   const [paste, setPaste] = useState("");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const { range, setRange, active, inRange } = useDateRange();
 
   function prefillFor(d: string): ValMap {
-    const base = zeros();
+    const base = zeros(staff);
     for (const r of rows) {
       if (r.date === d && base[r.employeeId]) {
         for (const f of FIELDS) base[r.employeeId][f.key] = r.values[f.key] ?? 0;
@@ -108,18 +127,18 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
 
   function applyPaste() {
     const lines = paste.trim().split(/\r?\n/).filter(Boolean);
-    const next = zeros();
+    const next = zeros(staff);
     // giữ giá trị hiện có
-    for (const s of STAFF) next[s.id] = { ...vals[s.id] };
+    for (const s of staff) next[s.id] = { ...vals[s.id] };
     let filled = 0;
     lines.forEach((line, i) => {
-      if (i >= STAFF.length) return;
+      if (i >= staff.length) return;
       const nums = line
         .split(/[\t,;]+|\s+/)
         .map((t) => Number(t.replace(/[^\d.]/g, "")))
         .filter((n) => Number.isFinite(n));
       if (!nums.length) return;
-      const emp = STAFF[i];
+      const emp = staff[i];
       FIELDS.forEach((f, j) => {
         if (nums[j] != null) next[emp.id][f.key] = nums[j];
       });
@@ -130,7 +149,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
   }
 
   async function save() {
-    const entries = STAFF.map((s) => ({
+    const entries = staff.map((s) => ({
       employeeCode: s.id,
       values: { ...vals[s.id] },
     }));
@@ -209,15 +228,26 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
         description={
           active
             ? `${sorted.length} / ${rows.length} báo cáo (đang lọc)`
-            : `${rows.length} báo cáo · Lead nhập hộ ${STAFF.length} nhân viên`
+            : canEditAny
+              ? `${rows.length} báo cáo · bạn nhập được cho ${staff.length} nhân viên`
+              : `${rows.length} báo cáo`
         }
         action={
-          <Button onClick={openBulk}>
-            <Users className="size-4" />
-            Nhập bulk {STAFF.length} dòng
-          </Button>
+          canEditAny ? (
+            <Button onClick={openBulk}>
+              <Users className="size-4" />
+              Nhập bulk {staff.length} dòng
+            </Button>
+          ) : null
         }
       />
+
+      {perm.readOnlyReason && (
+        <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+          <Eye className="mt-0.5 size-4 shrink-0" />
+          <span>{perm.readOnlyReason}</span>
+        </div>
+      )}
 
       <DateRangeFilter range={range} setRange={setRange} active={active} />
 
@@ -294,25 +324,28 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                             </TableCell>
                           ))}
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Sửa báo cáo"
-                                onClick={() => openBulkFor(row.date)}
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
-                                title="Xóa báo cáo"
-                                onClick={() => handleDelete(row)}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </div>
+                            {/* Chỉ sửa/xóa được dòng của người trong phạm vi mình */}
+                            {editable.has(row.employeeId) ? (
+                              <div className="flex items-center justify-end gap-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Sửa báo cáo"
+                                  onClick={() => openBulkFor(row.date)}
+                                >
+                                  <Pencil className="size-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                                  title="Xóa báo cáo"
+                                  onClick={() => handleDelete(row)}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       );
@@ -341,7 +374,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
         <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="font-heading">
-              Nhập báo cáo Livestream — {STAFF.length} nhân viên
+              Nhập báo cáo Livestream — {staff.length} nhân viên
             </DialogTitle>
             <DialogDescription>
               Nhập cùng lúc cho cả ca. Ô{" "}
@@ -376,7 +409,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {STAFF.map((s) => (
+                  {staff.map((s) => (
                     <tr key={s.id} className="border-b last:border-0">
                       <td className="whitespace-nowrap p-2">
                         <span className="font-medium">{s.shortName}</span>
@@ -458,7 +491,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
             </Button>
             <Button type="button" onClick={save} disabled={saving}>
               {saving && <Loader2 className="size-4 animate-spin" />}
-              Lưu {STAFF.length} báo cáo
+              Lưu {staff.length} báo cáo
             </Button>
           </DialogFooter>
         </DialogContent>

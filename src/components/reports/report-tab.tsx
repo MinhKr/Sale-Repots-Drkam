@@ -3,6 +3,7 @@
 import { Fragment, useState, useTransition } from "react";
 import {
   ChevronRight,
+  Eye,
   Pencil,
   Plus,
   ShieldCheck,
@@ -43,6 +44,7 @@ import { formatDateVn, formatMetric, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { deleteReport, saveReport } from "@/lib/reports/actions";
+import type { TabPermission } from "@/lib/reports/guard";
 
 /** Khối cảnh báo tồn lũy kế theo ngưỡng (Sao Xấu) */
 function BacklogAlert({
@@ -107,10 +109,20 @@ interface ReportTabProps {
   initialRows: ReportRow[];
   /** tồn đầu kỳ mang sang (chỉ tab có backlog dùng tới) */
   opening?: number;
+  /** Quyền nhập của người đang đăng nhập (tính ở server) */
+  perm: TabPermission;
 }
 
-export function ReportTab({ tab, initialRows, opening = 0 }: ReportTabProps) {
+export function ReportTab({
+  tab,
+  initialRows,
+  opening = 0,
+  perm,
+}: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
+  // Ẩn nút chỉ để gọn mắt — server vẫn tự chặn lại ở mọi action ghi.
+  const editable = new Set(perm.editableCodes);
+  const canEditAny = editable.size > 0;
   const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ReportRow | null>(null);
@@ -226,12 +238,21 @@ export function ReportTab({ tab, initialRows, opening = 0 }: ReportTabProps) {
             : `${rows.length} báo cáo`
         }
         action={
-          <Button onClick={openNew}>
-            <Plus className="size-4" />
-            Nhập báo cáo
-          </Button>
+          canEditAny ? (
+            <Button onClick={openNew}>
+              <Plus className="size-4" />
+              Nhập báo cáo
+            </Button>
+          ) : null
         }
       />
+
+      {perm.readOnlyReason && (
+        <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+          <Eye className="mt-0.5 size-4 shrink-0" />
+          <span>{perm.readOnlyReason}</span>
+        </div>
+      )}
 
       <DateRangeFilter range={range} setRange={setRange} active={active} />
 
@@ -300,31 +321,34 @@ export function ReportTab({ tab, initialRows, opening = 0 }: ReportTabProps) {
                         </TableCell>
                       ))}
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEdit(row);
-                            }}
-                          >
-                            <Pencil className="size-3.5" />
-                            Sửa
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
-                            title="Xóa báo cáo"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(row);
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
+                        {/* Chỉ hiện Sửa/Xóa với dòng thuộc phạm vi của mình */}
+                        {editable.has(row.employeeId) ? (
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(row);
+                              }}
+                            >
+                              <Pencil className="size-3.5" />
+                              Sửa
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                              title="Xóa báo cáo"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(row);
+                              }}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                     {isOpen && (
@@ -370,6 +394,7 @@ export function ReportTab({ tab, initialRows, opening = 0 }: ReportTabProps) {
           <ReportForm
             key={seq}
             config={config}
+            editableCodes={perm.editableCodes}
             initial={editing}
             pending={saving}
             onSubmit={handleSubmit}

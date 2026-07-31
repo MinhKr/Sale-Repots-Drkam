@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireFullAccess } from "@/lib/auth";
 import { getEmployeeMaps } from "@/lib/reports/shared";
 
 // Dùng giá trị vừa insert (EXCLUDED) khi upsert nhiều dòng cùng lúc.
@@ -22,7 +22,7 @@ const saveSchema = z.object({
  * unique(year, month, employee_id) → nhập lại cùng tháng sẽ ghi đè.
  */
 export async function saveKpiConfig(input: unknown): Promise<void> {
-  await requireUser();
+  await requireFullAccess();
   const { year, month, warning, targets } = saveSchema.parse(input);
 
   const { codeToId } = await getEmployeeMaps();
@@ -76,7 +76,7 @@ const openingSchema = z.object({
  * Đây là số chốt của kỳ trước — app không suy ra được, phải nhập tay.
  */
 export async function saveBadReviewOpening(input: unknown): Promise<void> {
-  await requireUser();
+  await requireFullAccess();
   const { year, month, balance, note } = openingSchema.parse(input);
 
   await db

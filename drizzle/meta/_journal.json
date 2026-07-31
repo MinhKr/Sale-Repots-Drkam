@@ -57,6 +57,20 @@
       "when": 1785145468500,
       "tag": "0007_motionless_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785469400966,
+      "tag": "0008_futuristic_iron_monger",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785470945068,
+      "tag": "0009_smiling_thor_girl",
+      "breakpoints": true
     }
   ]
 }

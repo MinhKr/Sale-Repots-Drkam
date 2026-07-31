@@ -10,7 +10,14 @@ import {
 import { Header } from "./header";
 import { SidebarBrand, SidebarNav } from "./sidebar";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  isManager = false,
+}: {
+  children: React.ReactNode;
+  /** Quyết định có hiện các mục menu dành riêng cho quản lý hay không */
+  isManager?: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -18,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar cố định — desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-sidebar lg:flex">
         <SidebarBrand />
-        <SidebarNav />
+        <SidebarNav isManager={isManager} />
       </aside>
 
       {/* Sidebar dạng Sheet — mobile */}
@@ -31,7 +38,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SheetTitle>Điều hướng</SheetTitle>
           </SheetHeader>
           <SidebarBrand />
-          <SidebarNav onNavigate={() => setMobileOpen(false)} />
+          <SidebarNav
+            isManager={isManager}
+            onNavigate={() => setMobileOpen(false)}
+          />
         </SheetContent>
       </Sheet>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_GROUPS } from "@/lib/nav";
+import { navGroupsFor } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 export function SidebarBrand() {
@@ -21,12 +21,19 @@ export function SidebarBrand() {
   );
 }
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({
+  isManager = false,
+  onNavigate,
+}: {
+  isManager?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
+  const groups = navGroupsFor(isManager);
 
   return (
     <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
-      {NAV_GROUPS.map((group, gi) => (
+      {groups.map((group, gi) => (
         <div key={gi} className="flex flex-col gap-0.5">
           {group.title && (
             <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">

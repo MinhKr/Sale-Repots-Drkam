@@ -32,11 +32,11 @@
 >
 > **Cập nhật 2026-07-20:** Hương chuyển sang dept **ADMIN** (migration `0003_add_admin_dept`, cập nhật không xóa dữ liệu). Miền (MB/MN) + FT/PT của Livestream **đã lưu ở mock + hiển thị nhãn** (chưa lưu DB). Tab **Sale** chỉ còn chọn Sale + Admin + Lead (bỏ CSKH).
 >
-> CSKH có thể nhập cả tab **Sao Xấu**. Livestream do **Lead nhập hộ**.
+> ~~CSKH có thể nhập cả tab Sao Xấu~~ — **đổi 2026-07-31b:** Sao Xấu do **Hương (Admin)** nhập. Livestream do **fulltime cùng miền** nhập hộ (xem phân quyền cuối file).
 >
 > **Tên hiển thị** (`short_name`) có hậu tố phân biệt vì dễ nhầm: *Phượng* (Sale) vs *Phương* (CSKH); *Thủy MB* (Nguyễn Thu Thủy) vs *Thanh Thúy MN* (Nguyễn Thị Thanh Thúy). Bảng/dashboard dùng tên hiển thị; hồ sơ cá nhân + user menu dùng họ tên đầy đủ.
 >
-> Thông tin **fulltime/parttime + miền** hiện **không lưu DB** (PM chốt chưa cần) — chỉ ghi chú ở đây.
+> ~~Thông tin fulltime/parttime + miền không lưu DB~~ — **đổi 2026-07-31b:** đã lưu vào cột `region` + `employment` của bảng `employees` (migration 0009) vì phân quyền Livestream dựa vào 2 giá trị này. Sửa được ngay trên màn Quản lý nhân viên.
 
 ---
 
@@ -126,3 +126,19 @@
   - **Pipeline (`lib/wholesale/`):** `listWholesale` (relational query customers + logs + mã NV) · actions `setStage` / `addContactLog` (log date = ngày thật, trả log mới). Board bỏ localStorage, đổi giai đoạn optimistic + revert khi lỗi. Verify: 8 khách, 15 log.
   - Home/dashboard-cá-nhân/kpi/pipeline → **async server component + `force-dynamic`**. Mọi action ghi vẫn `requireUser()`. Build + typecheck + lint sạch.
   - **Còn lại:** UI user menu đã là tài khoản chung (không còn `CURRENT_USER` ở dashboard/home) — `CURRENT_USER` mock chỉ còn để tham chiếu, gỡ hẳn khi cần. P11 (xuất báo cáo thật) chưa làm.
+- [x] **Phiên 2026-07-31b — Tài khoản riêng cho nhân viên + phân quyền nhập báo cáo** ✅
+  - **Màn Quản lý nhân viên (`/nhan-vien`)** cho tài khoản chung `sale@drkam.vn`: cấp tài khoản, đặt lại mật khẩu, khóa/mở đăng nhập, thu hồi tài khoản, thêm nhân viên mới. Tài khoản + mật khẩu **do quản lý tự nhập** (không có mật khẩu mặc định); email gợi ý sẵn theo quy tắc **tên + viết tắt họ đệm** (`Lê Hoài Ly` → `lylh@drkam.vn`), sửa được.
+  - **DB:** `employees` thêm `email` (unique) + unique cho `auth_user_id` (migration 0008); thêm `region` (MB/MN) + `employment` (FT/PT) (migration 0009) — trước đó 2 thông tin này CHỈ có trong mock. Đã backfill 7 NV Livestream.
+  - **Ai là quản lý:** email khớp `MANAGER_EMAILS` (env, mặc định `sale@drkam.vn`) **hoặc** NV có `role = LEAD`. Admin (Hương) có toàn quyền dữ liệu nhưng không phải quản lý tài khoản.
+  - **Phân quyền nhập báo cáo (`lib/permissions.ts`)** — ai cũng XEM được mọi báo cáo, quyền NHẬP/SỬA/XÓA thì:
+    - Sale / CSKH → NV bộ phận đó, **chỉ dòng của chính mình**
+    - Sao Xấu → **chỉ Admin (Hương) + Lead** (CSKH không còn nhập)
+    - Livestream → **chỉ fulltime**; nhập cho mình + các **parttime cùng miền**. Parttime chỉ xem và **không được cấp tài khoản** (form tự ẩn ô tài khoản, `createAccount` từ chối ở server).
+    - Admin + Lead + tài khoản chung → mọi tab, mọi người.
+  - **Chặn ở SERVER là lớp thật** (`lib/reports/guard.ts`): `saveReport` / `deleteReport` / `saveLivestreamDay` đều kiểm tra phạm vi. `deleteReport` phải tra dòng đó của AI rồi mới xét quyền.
+  - **⚠️ Sửa lỗi suýt mất dữ liệu:** `saveLivestreamDay` vốn xóa **toàn bộ báo cáo của cả ngày** rồi chèn lại → một bạn FT miền Bắc bấm Lưu sẽ xóa mất báo cáo miền Nam. Đã giới hạn lệnh xóa trong đúng phạm vi người nhập.
+  - **Cấu hình KPI** siết lại cho Lead/Admin/tài khoản chung (trước đây ai đăng nhập cũng sửa được mục tiêu cả team); menu ẩn với NV thường.
+  - **Sửa lỗi UI:** ô Select của Base UI cần prop `items` map value→nhãn, thiếu thì hiện `SALE`/`MB`/`FT` thay vì `Sale`/`Miền Bắc`/`Fulltime`.
+  - Verify thật: vòng đời tài khoản 8/8 (tạo → đăng nhập → sai mật khẩu → khóa → mở → đặt lại) · mật khẩu tự đặt + từ chối < 6 ký tự · rollback khi cấp tài khoản hỏng · luồng part-time 6/6 · ma trận quyền 10 vai. Build + typecheck + lint sạch.
+  - **🔴 Chưa làm:** 12 NV hiện có **chưa ai được cấp tài khoản** — PM tự cấp trên `/nhan-vien`. Không mất dữ liệu cũ vì báo cáo móc vào `employees.id`, cấp tài khoản chỉ UPDATE thêm `email` + `auth_user_id`.
+  - **🔴 CẢNH BÁO:** `npm run db:seed` XÓA SẠCH mọi bảng rồi nạp lại dữ liệu mẫu — dữ liệu giờ là thật (171 báo cáo), TUYỆT ĐỐI không chạy nữa.
