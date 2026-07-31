@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import {
   CONFIG_BY_TAB,
@@ -20,15 +20,30 @@ import { reportTable } from "./shared";
  * là round-trip mạng thừa. Đường GHI (actions.ts) vẫn tự kiểm tra phiên vì
  * Server Action có thể bị gọi trực tiếp và Drizzle bỏ qua RLS.
  */
-export async function listReports(tab: ConfigTab): Promise<ReportRow[]> {
+export async function listReports(
+  tab: ConfigTab,
+  /**
+   * Giới hạn theo uuid nhân viên được XEM (lib/reports/guard.ts tính ra).
+   * Bỏ trống = không giới hạn (Lead/Admin/tài khoản chung).
+   * Mảng RỖNG = không thấy gì — trả về [] luôn, không truy vấn.
+   */
+  visibleIds?: string[],
+): Promise<ReportRow[]> {
+  if (visibleIds && visibleIds.length === 0) return [];
+
   const table = reportTable(tab);
   const config = CONFIG_BY_TAB[tab];
 
-  const rows: { report: Record<string, any>; code: string | null }[] = await db
+  const q = db
     .select({ report: table, code: schema.employees.code })
     .from(table)
-    .leftJoin(schema.employees, eq(table.employeeId, schema.employees.id))
-    .orderBy(desc(table.reportDate));
+    .leftJoin(schema.employees, eq(table.employeeId, schema.employees.id));
+
+  const rows: { report: Record<string, any>; code: string | null }[] =
+    await (visibleIds
+      ? q.where(inArray(table.employeeId, visibleIds))
+      : q
+    ).orderBy(desc(table.reportDate));
 
   return rows.map(({ report, code }) => {
     const values: Record<string, number> = {};

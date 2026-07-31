@@ -107,6 +107,14 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   };
 }
 
+/** Người đang đăng nhập có toàn quyền không (tài khoản chung / Lead / Admin). */
+export async function hasFullAccessNow(): Promise<boolean> {
+  const me = await getCurrentUser();
+  return (
+    me.isManager || me.employee?.role === "LEAD" || me.employee?.dept === "ADMIN"
+  );
+}
+
 /**
  * Bắt buộc có toàn quyền: tài khoản chung, Lead, hoặc Admin (Hương).
  * Dùng cho các màn quản trị số liệu chung như Cấu hình KPI — nhân viên thường

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ConfigTab } from "@/lib/mock/reports";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -21,6 +22,11 @@ export interface NavItem {
    * hoặc Admin. Nhân viên thường không thấy mục này.
    */
   managerOnly?: boolean;
+  /**
+   * Mục là tab báo cáo của tab nào — dùng để chỉ hiện tab thuộc bộ phận
+   * của người đang đăng nhập.
+   */
+  tab?: ConfigTab;
 }
 
 export interface NavGroup {
@@ -38,17 +44,32 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Báo cáo",
     items: [
-      { label: "Sale", href: "/reports/sale", icon: ShoppingBag },
-      { label: "CSKH", href: "/reports/cskh", icon: Headset },
-      { label: "Sao Xấu", href: "/reports/sao-xau", icon: Star },
-      { label: "Livestream", href: "/reports/livestream", icon: Radio },
+      { label: "Sale", href: "/reports/sale", icon: ShoppingBag, tab: "SALE" },
+      { label: "CSKH", href: "/reports/cskh", icon: Headset, tab: "CSKH" },
+      {
+        label: "Sao Xấu",
+        href: "/reports/sao-xau",
+        icon: Star,
+        tab: "SAO_XAU",
+      },
+      {
+        label: "Livestream",
+        href: "/reports/livestream",
+        icon: Radio,
+        tab: "LIVESTREAM",
+      },
     ],
   },
   {
     title: "Phân tích",
     items: [
       { label: "Dashboard cá nhân", href: "/dashboard-ca-nhan", icon: UserRound },
-      { label: "Pipeline khách sỉ", href: "/pipeline", icon: Workflow },
+      {
+        label: "Pipeline khách sỉ",
+        href: "/pipeline",
+        icon: Workflow,
+        managerOnly: true,
+      },
     ],
   },
   {
@@ -66,15 +87,33 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Target,
         managerOnly: true,
       },
-      { label: "Xuất báo cáo", href: "/export", icon: FileDown },
+      {
+        label: "Xuất báo cáo",
+        href: "/export",
+        icon: FileDown,
+        managerOnly: true,
+      },
     ],
   },
 ];
 
-/** Lọc menu theo quyền — nhóm nào rỗng sau khi lọc thì bỏ luôn. */
-export function navGroupsFor(isManager: boolean): NavGroup[] {
+/**
+ * Lọc menu theo quyền — nhóm nào rỗng sau khi lọc thì bỏ luôn.
+ *
+ * Nhân viên thường chỉ còn: Trang chủ · tab báo cáo của bộ phận mình ·
+ * Dashboard cá nhân (PM chốt 2026-07-31c).
+ */
+export function navGroupsFor(
+  isManager: boolean,
+  /** Các tab báo cáo được vào — bỏ qua khi isManager */
+  allowedTabs: ConfigTab[] = [],
+): NavGroup[] {
   return NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((i) => !i.managerOnly || isManager),
+    items: g.items.filter((i) => {
+      if (i.managerOnly && !isManager) return false;
+      if (i.tab && !isManager && !allowedTabs.includes(i.tab)) return false;
+      return true;
+    }),
   })).filter((g) => g.items.length > 0);
 }

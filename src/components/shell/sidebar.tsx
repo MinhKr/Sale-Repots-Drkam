@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGroupsFor } from "@/lib/nav";
+import type { ConfigTab } from "@/lib/mock/reports";
 import { cn } from "@/lib/utils";
 
 export function SidebarBrand() {
@@ -23,13 +24,16 @@ export function SidebarBrand() {
 
 export function SidebarNav({
   isManager = false,
+  allowedTabs = [],
   onNavigate,
 }: {
   isManager?: boolean;
+  /** Tab báo cáo người này được vào — NV thường chỉ có tab bộ phận mình */
+  allowedTabs?: ConfigTab[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const groups = navGroupsFor(isManager);
+  const groups = navGroupsFor(isManager, allowedTabs);
 
   return (
     <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">

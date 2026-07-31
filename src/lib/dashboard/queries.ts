@@ -582,18 +582,42 @@ export interface PersonalData {
   series: RevenuePoint[];
 }
 
-/** Dữ liệu dashboard cá nhân cho MỌI NV (client tự đổi qua selector). */
-export async function getPersonalDashboards(): Promise<PersonalData[]> {
+export interface PersonalDashboardPayload {
+  /** Danh sách người xem được — NV thường chỉ có đúng mình họ */
+  people: PersonalData[];
+  /** uuid tương ứng từng người (theo `code`) — dùng để nạp chỉ số chi tiết */
+  idByCode: Record<string, string>;
+  month: string | null;
+  monthLabel: string;
+}
+
+/**
+ * Dữ liệu dashboard cá nhân.
+ *
+ * `onlyCodes` giới hạn danh sách trả về (nhân viên thường chỉ được xem chính
+ * mình — PM chốt 2026-07-31c). Bỏ trống = trả hết, cho Lead/Admin.
+ */
+export async function getPersonalDashboards(
+  onlyCodes?: string[],
+): Promise<PersonalDashboardPayload> {
   const base = await loadBase();
   const ranking = buildRanking(base);
   const total = ranking.length;
-  if (!base.anchor) return [];
+  const monthLbl = monthLabel(base.month);
+  const idByCode = Object.fromEntries(
+    base.employees.map((e) => [e.code, e.id]),
+  );
+  if (!base.anchor)
+    return { people: [], idByCode, month: base.month, monthLabel: monthLbl };
 
   const empByCode = new Map(base.employees.map((e) => [e.code, e]));
   const dailyTarget = (target: number) =>
     Math.round(ratio(target, daysInMonth(base.anchor!)));
 
-  return ranking.map((r) => {
+  const allow = onlyCodes ? new Set(onlyCodes) : null;
+  const people = ranking
+    .filter((r) => !allow || allow.has(r.employeeId))
+    .map((r) => {
     const emp = empByCode.get(r.employeeId)!;
     const daily = base.empDaily.get(emp.id);
     const perDayTarget = dailyTarget(r.target);
@@ -621,4 +645,6 @@ export async function getPersonalDashboards(): Promise<PersonalData[]> {
       series,
     };
   });
+
+  return { people, idByCode, month: base.month, monthLabel: monthLbl };
 }

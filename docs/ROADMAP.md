@@ -142,3 +142,12 @@
   - Verify thật: vòng đời tài khoản 8/8 (tạo → đăng nhập → sai mật khẩu → khóa → mở → đặt lại) · mật khẩu tự đặt + từ chối < 6 ký tự · rollback khi cấp tài khoản hỏng · luồng part-time 6/6 · ma trận quyền 10 vai. Build + typecheck + lint sạch.
   - **🔴 Chưa làm:** 12 NV hiện có **chưa ai được cấp tài khoản** — PM tự cấp trên `/nhan-vien`. Không mất dữ liệu cũ vì báo cáo móc vào `employees.id`, cấp tài khoản chỉ UPDATE thêm `email` + `auth_user_id`.
   - **🔴 CẢNH BÁO:** `npm run db:seed` XÓA SẠCH mọi bảng rồi nạp lại dữ liệu mẫu — dữ liệu giờ là thật (171 báo cáo), TUYỆT ĐỐI không chạy nữa.
+- [x] **Phiên 2026-07-31c — Siết phân quyền: mỗi NV chỉ thấy dữ liệu của mình** ✅
+  - **Đổi mô hình:** trước đây ai cũng XEM được mọi báo cáo, chỉ giới hạn quyền sửa. Nay nhân viên thường **chỉ thấy dữ liệu của chính mình**. Lead / Admin / tài khoản chung vẫn thấy và sửa toàn bộ.
+  - **Sidebar của NV thường rút còn 3 mục:** Trang chủ · tab báo cáo của bộ phận mình · Dashboard cá nhân. Ẩn hẳn Pipeline khách sỉ, Xuất báo cáo, Cấu hình KPI, Quản lý nhân viên và các tab báo cáo khác.
+  - **Chặn thật ở server, không phải ẩn giao diện:** `listReports(tab, visibleIds)` lọc ngay trong truy vấn; các trang ngoài phạm vi trả `notFound()`. Gõ thẳng URL cũng không lấy được dữ liệu.
+  - **`lib/permissions.ts`** tách 2 khái niệm: `editableEmployees` (được sửa) và `visibleEmployees` (được xem) = phạm vi sửa **cộng thêm chính mình**. Phần cộng thêm là bắt buộc — Livestream part-time không sửa được gì nhưng vẫn phải xem được số của mình, nếu không trang trống trơn. Thêm `visibleTabs(actor)` để lọc menu + chặn route.
+  - **Trang chủ giữ nguyên dashboard team** cho mọi người (PM chốt: coi như thông tin chung để thi đua).
+  - **Dashboard cá nhân:** NV thường bị khóa vào chính họ (bỏ ô chọn nhân viên); thêm **thanh tiến trình doanh thu của riêng họ** (tái dùng `MonthTargetCard`); thêm khối **đầy đủ chỉ số bộ phận** trong tháng (Sale: 9 ô nhập + 5 ô tự tính).
+    - `lib/dashboard/personal-metrics.ts`: **cộng dồn ô nhập rồi mới tính lại ô tự tính từ tổng** — KHÔNG lấy trung bình theo ngày (trung bình cộng tỉ lệ rep từng ngày sẽ sai khi lượng tin chênh lệch). Đúng **4 truy vấn** cố định dù bao nhiêu NV.
+  - Verify thật trên bản build production, đăng nhập bằng phiên tạm gắn vào NV thật: NV Sale thấy đúng 29 dòng của mình và 0 dòng người khác, sidebar đúng 3 mục, 7/10 route trả 404; Lead vào được cả 10 route và thấy đủ menu. Ma trận xem/sửa 6 vai đúng như PM mô tả. Dữ liệu kiểm thử đã hoàn nguyên.
