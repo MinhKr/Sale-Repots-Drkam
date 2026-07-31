@@ -9,14 +9,18 @@ import {
 } from "@/components/ui/sheet";
 import { Header } from "./header";
 import { SidebarBrand, SidebarNav } from "./sidebar";
+import type { SessionUser } from "./user-menu";
 
 export function AppShell({
   children,
   isManager = false,
+  user,
 }: {
   children: React.ReactNode;
   /** Quyết định có hiện các mục menu dành riêng cho quản lý hay không */
   isManager?: boolean;
+  /** Danh tính người đang đăng nhập — hiện ở góc trên bên phải */
+  user: SessionUser;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -47,7 +51,7 @@ export function AppShell({
 
       {/* Vùng nội dung */}
       <div className="flex min-h-screen flex-col lg:pl-60">
-        <Header onMenuClick={() => setMobileOpen(true)} />
+        <Header onMenuClick={() => setMobileOpen(true)} user={user} />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>

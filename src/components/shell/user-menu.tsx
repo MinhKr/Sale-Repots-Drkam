@@ -15,15 +15,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 /**
- * Tài khoản dùng chung cho cả phòng Sale (1 nick, không phải cá nhân).
- * Hiển thị danh tính tài khoản — không lấy tên/nhãn của nhân sự mock.
+ * Danh tính người đang đăng nhập — tính ở server rồi truyền xuống.
+ *
+ * Từ 2026-07-31 mỗi nhân viên có tài khoản riêng nên KHÔNG được ghi cứng
+ * "Phòng Sale DrKam" nữa: đăng nhập bằng nick nào thì hiện đúng tên người đó.
+ * Tài khoản chung của phòng (chưa gắn với nhân viên nào) mới hiện tên phòng.
  */
-const ACCOUNT_NAME = "Phòng Sale DrKam";
-const ACCOUNT_EMAIL = "sale@drkam.vn";
-const ACCOUNT_INITIALS = "PS";
+export interface SessionUser {
+  name: string;
+  email: string;
+  initials: string;
+  /** Nhãn phụ dưới tên trong menu, vd "Livestream · Miền Bắc" */
+  subtitle?: string;
+}
 
-export function UserMenu() {
+export function UserMenu({ user }: { user: SessionUser }) {
   const router = useRouter();
+  const { name: ACCOUNT_NAME, email: ACCOUNT_EMAIL, initials: ACCOUNT_INITIALS } = user;
 
   return (
     <DropdownMenu>
@@ -43,6 +51,11 @@ export function UserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             <span className="block font-medium">{ACCOUNT_NAME}</span>
+            {user.subtitle && (
+              <span className="block text-xs font-normal text-muted-foreground">
+                {user.subtitle}
+              </span>
+            )}
             <span className="block text-xs font-normal text-muted-foreground">
               {ACCOUNT_EMAIL}
             </span>

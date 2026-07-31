@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NAV_GROUPS } from "@/lib/nav";
-import { UserMenu } from "./user-menu";
+import { UserMenu, type SessionUser } from "./user-menu";
 
 function currentTitle(pathname: string): string {
   for (const group of NAV_GROUPS) {
@@ -17,7 +17,13 @@ function currentTitle(pathname: string): string {
   return "Sales Report";
 }
 
-export function Header({ onMenuClick }: { onMenuClick: () => void }) {
+export function Header({
+  onMenuClick,
+  user,
+}: {
+  onMenuClick: () => void;
+  user: SessionUser;
+}) {
   const pathname = usePathname();
   const title = currentTitle(pathname);
 
@@ -34,7 +40,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
       </Button>
       <h1 className="font-heading text-base font-semibold sm:text-lg">{title}</h1>
       <div className="ml-auto flex items-center gap-1">
-        <UserMenu />
+        <UserMenu user={user} />
       </div>
     </header>
   );
