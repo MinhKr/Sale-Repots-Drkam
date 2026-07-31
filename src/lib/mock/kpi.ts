@@ -6,7 +6,7 @@
 import type { DeptCode } from "./types";
 
 /** Các bộ phận có KPI (Lead không có target riêng) */
-export const KPI_DEPTS: DeptCode[] = ["SALE", "CSKH", "LIVESTREAM", "MKT"];
+export const KPI_DEPTS: DeptCode[] = ["SALE", "CSKH", "LIVESTREAM"];
 
 /** Mục tiêu doanh thu tháng mặc định theo NV (khớp số dùng ở dashboard).
  *  Hương (cskh-huong) là Admin — không có KPI, như Lead. */
@@ -21,7 +21,6 @@ export const KPI_DEFAULT_TARGETS: Record<string, number> = {
   "live-thuy": 90_000_000,
   "live-binh": 90_000_000,
   "live-dieu-linh": 90_000_000,
-  "mkt-ha": 60_000_000,
 };
 
 /** Mục tiêu tháng TRƯỚC (mock ~90%) — dùng cho nút "Sao chép tháng trước" */

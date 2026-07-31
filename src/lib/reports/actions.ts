@@ -24,7 +24,6 @@ const TAB_PATH: Record<ConfigTab, string> = {
   CSKH: "/reports/cskh",
   SAO_XAU: "/reports/sao-xau",
   LIVESTREAM: "/reports/livestream",
-  MKT: "/reports/mkt",
 };
 
 const nonNegNumber = z

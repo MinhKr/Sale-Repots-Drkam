@@ -3,11 +3,14 @@
  * Khi sang Giai đoạn 2 (DB thật) sẽ ánh xạ 1-1 sang schema Drizzle.
  */
 
-/** Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead) */
-export type DeptCode = "SALE" | "CSKH" | "LIVESTREAM" | "MKT" | "ADMIN" | "LEAD";
+/**
+ * Bộ phận biên chế nhân sự (ADMIN = quản trị, nhập được mọi tab như Lead).
+ * Bộ phận MKT đã gỡ khỏi app 2026-07-31 (enum "MKT" vẫn còn trong DB, xem db/schema/enums.ts).
+ */
+export type DeptCode = "SALE" | "CSKH" | "LIVESTREAM" | "ADMIN" | "LEAD";
 
-/** 5 loại tab báo cáo (Sao Xấu là loại báo cáo, không phải bộ phận) */
-export type ReportTab = "SALE" | "CSKH" | "SAO_XAU" | "LIVESTREAM" | "MKT";
+/** 4 loại tab báo cáo (Sao Xấu là loại báo cáo, không phải bộ phận) */
+export type ReportTab = "SALE" | "CSKH" | "SAO_XAU" | "LIVESTREAM";
 
 export type Role = "STAFF" | "LEAD";
 

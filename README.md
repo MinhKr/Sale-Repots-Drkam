@@ -20,7 +20,9 @@ Hệ thống báo cáo phòng Sale DrKam — web nội bộ thay thế các file
 
 ## Phạm vi (giai đoạn 1)
 
-11 màn hình: Đăng nhập, Trang chủ, 5 tab bộ phận (Sale, CSKH, Sao Xấu, Livestream, MKT), Dashboard cá nhân, Pipeline khách sỉ, Cấu hình KPI, Xuất báo cáo. Database 11 bảng bảo vệ bằng Row Level Security.
+10 màn hình: Đăng nhập, Trang chủ, 4 tab bộ phận (Sale, CSKH, Sao Xấu, Livestream), Dashboard cá nhân, Pipeline khách sỉ, Cấu hình KPI, Xuất báo cáo. Database 11 bảng bảo vệ bằng Row Level Security.
+
+> Tab **Marketing** đã gỡ khỏi app ngày 2026-07-31 (bộ phận không còn nhân sự). Bảng `reports_marketing` vẫn còn trong DB nhưng không dùng nữa.
 
 ## Sprint plan (5 tuần)
 

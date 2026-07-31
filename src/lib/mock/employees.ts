@@ -5,7 +5,6 @@ export const DEPT_LABEL: Record<DeptCode, string> = {
   SALE: "Sale",
   CSKH: "CSKH",
   LIVESTREAM: "Livestream",
-  MKT: "Marketing",
   ADMIN: "Admin",
   LEAD: "Lead / BGĐ",
 };
@@ -32,8 +31,9 @@ export function regionEmploymentLabel(e: Employee): string {
 }
 
 /**
- * Nhân sự THẬT của phòng Sale DrKam — 12 NV + 1 Lead (13 người).
+ * Nhân sự THẬT của phòng Sale DrKam — 11 NV + 1 Lead (12 người).
  * Nguồn: danh sách PM cung cấp 2026-07-16.
+ * 2026-07-31: gỡ Nguyễn Thị Hà (MKT) — bộ phận Marketing không còn dùng.
  *
  * `name` = họ tên đầy đủ · `shortName` = tên gọi hiển thị ở bảng/dashboard.
  * shortName có hậu tố phân biệt vì dễ nhầm: Phượng (Sale) vs Phương (CSKH),
@@ -60,9 +60,6 @@ export const EMPLOYEES: Employee[] = [
   { id: "live-thuy-mn", name: "Nguyễn Thị Thanh Thúy", shortName: "Thanh Thúy MN", dept: "LIVESTREAM", role: "STAFF", initials: "Ty", active: true, region: "MN", employment: "FT" },
   { id: "live-vy-mn", name: "Trần Thanh Vy", shortName: "Vy MN", dept: "LIVESTREAM", role: "STAFF", initials: "Vy", active: true, region: "MN", employment: "PT" },
   { id: "live-trang-mn", name: "Trần Thị Thu Trang", shortName: "Trang MN", dept: "LIVESTREAM", role: "STAFF", initials: "Tr", active: true, region: "MN", employment: "PT" },
-
-  // MKT (1) — Lead nhập hộ
-  { id: "mkt-ha", name: "Nguyễn Thị Hà", shortName: "Hà", dept: "MKT", role: "STAFF", initials: "Hà", active: true },
 
   // Lead / BGĐ (1)
   { id: "lead-ly", name: "Lê Hoài Ly", shortName: "Ly", dept: "LEAD", role: "LEAD", initials: "Ly", active: true },
