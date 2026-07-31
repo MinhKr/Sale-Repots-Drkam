@@ -27,7 +27,6 @@ import {
 import {
   computeMetrics,
   CONFIG_BY_TAB,
-  TODAY_ISO,
   type ReportRow,
 } from "@/lib/mock/reports";
 import {
@@ -35,7 +34,12 @@ import {
   getEmployee,
   regionEmploymentLabel,
 } from "@/lib/mock/employees";
-import { formatCurrency, formatDateVn, formatMetric } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDateVn,
+  formatMetric,
+  todayIso,
+} from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { MoneyInput } from "@/components/money-input";
 import { DateRangeFilter, useDateRange } from "./date-range-filter";
@@ -60,7 +64,7 @@ function zeros(): ValMap {
 export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
   const [rows, setRows] = useState<ReportRow[]>(initialRows);
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(TODAY_ISO);
+  const [date, setDate] = useState(todayIso);
   const [vals, setVals] = useState<ValMap>(zeros);
   const [paste, setPaste] = useState("");
   const [saving, setSaving] = useState(false);
@@ -78,7 +82,7 @@ export function LivestreamTab({ initialRows }: { initialRows: ReportRow[] }) {
   }
 
   function openBulk() {
-    openBulkFor(TODAY_ISO);
+    openBulkFor(todayIso());
   }
 
   /** Mở dialog bulk tại 1 ngày cụ thể, prefill sẵn — dùng cho nút Sửa mỗi dòng. */

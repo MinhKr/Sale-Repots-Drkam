@@ -51,6 +51,16 @@ function round(n: number): string {
   return n.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 }
 
+/**
+ * Ngày hôm nay dạng "YYYY-MM-DD" theo giờ máy người dùng.
+ * Không dùng toISOString() vì nó quy về UTC — sáng sớm ở VN (UTC+7) sẽ ra ngày hôm qua.
+ */
+export function todayIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** "2026-07-13" -> "13/07/2026" */
 export function formatDateVn(iso: string): string {
   const [y, m, d] = iso.split("-");
