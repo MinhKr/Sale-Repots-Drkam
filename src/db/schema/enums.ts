@@ -15,6 +15,19 @@ export const deptEnum = pgEnum("dept", ["SALE", "CSKH", "LIVESTREAM", "MKT", "AD
 /** Vai trò */
 export const roleEnum = pgEnum("role", ["STAFF", "LEAD"]);
 
+/**
+ * Miền làm việc — chỉ dùng cho Livestream.
+ * Quyết định phạm vi nhập báo cáo: NV fulltime nhập hộ được các bạn
+ * parttime CÙNG MIỀN (PM chốt 2026-07-31).
+ */
+export const regionEnum = pgEnum("region", ["MB", "MN"]);
+
+/**
+ * Loại hợp đồng — chỉ dùng cho Livestream.
+ * FT (fulltime) mới có quyền nhập báo cáo; PT chỉ xem.
+ */
+export const employmentEnum = pgEnum("employment", ["FT", "PT"]);
+
 /** Giai đoạn pipeline khách sỉ */
 export const wholesaleStageEnum = pgEnum("wholesale_stage", [
   "moi",

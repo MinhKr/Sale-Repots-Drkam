@@ -1,10 +1,11 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
+import { assertCanEditFor, loadEditScope } from "./guard";
 import {
   CONFIG_BY_TAB,
   type ConfigTab,
@@ -91,6 +92,9 @@ export async function saveReport(
   const employeeUuid = codeToId.get(parsed.employeeCode);
   if (!employeeUuid) throw new Error("Nhân viên không tồn tại.");
 
+  // Chặn quyền: chỉ được ghi cho nhân viên trong phạm vi của mình.
+  await assertCanEditFor(tab, employeeUuid);
+
   const table = reportTable(tab);
   const record = buildDbRecord(
     tab,
@@ -120,6 +124,16 @@ export async function deleteReport(tab: ConfigTab, id: string): Promise<void> {
   z.string().uuid().parse(id);
 
   const table = reportTable(tab);
+
+  // Phải biết dòng này của AI rồi mới xét quyền — không xóa mù theo id.
+  const [row] = await db
+    .select({ employeeId: table.employeeId })
+    .from(table)
+    .where(eq(table.id, id))
+    .limit(1);
+  if (!row) return; // đã bị xóa trước đó — coi như xong
+  await assertCanEditFor(tab, row.employeeId as string);
+
   await db.delete(table).where(eq(table.id, id));
   revalidatePath(TAB_PATH[tab]);
 }
@@ -150,19 +164,37 @@ export async function saveLivestreamDay(
   const { codeToId } = await getEmployeeMaps();
   const config = CONFIG_BY_TAB[tab];
 
+  // Phạm vi được sửa: fulltime chỉ nhập cho mình + parttime cùng miền.
+  const { editableIds } = await loadEditScope(tab);
+  if (editableIds.size === 0) {
+    throw new Error("Bạn không có quyền nhập báo cáo Livestream.");
+  }
+
+  // Mọi dòng gửi lên phải nằm trong phạm vi — sai 1 dòng là từ chối cả lượt.
+  const scopedEntries = parsedEntries.map((e) => {
+    const uuid = codeToId.get(e.employeeCode);
+    if (!uuid) throw new Error(`Nhân viên không tồn tại: ${e.employeeCode}`);
+    if (!editableIds.has(uuid)) {
+      throw new Error("Bạn không có quyền nhập báo cáo cho nhân viên này.");
+    }
+    return { uuid, values: e.values as Record<string, number>, note: e.note };
+  });
+
   // Chỉ giữ dòng có ít nhất 1 ô > 0 (khớp hành vi UI cũ).
-  const records = parsedEntries
-    .map((e) => ({ ...e, values: e.values as Record<string, number> }))
+  const records = scopedEntries
     .filter((e) => config.inputs.some((f) => (e.values[f.key] ?? 0) > 0))
-    .map((e) => {
-      const uuid = codeToId.get(e.employeeCode);
-      if (!uuid) throw new Error(`Nhân viên không tồn tại: ${e.employeeCode}`);
-      return buildDbRecord(tab, uuid, d, e.values, e.note);
-    });
+    .map((e) => buildDbRecord(tab, e.uuid, d, e.values, e.note));
 
   const table = reportTable(tab);
+  const scopedIds = [...editableIds];
   await db.transaction(async (tx) => {
-    await tx.delete(table).where(eq(table.reportDate, d));
+    // ⚠️ Xóa-rồi-chèn PHẢI giới hạn trong phạm vi của người đang nhập. Nếu xóa
+    // cả ngày, một bạn fulltime miền Bắc bấm lưu sẽ xóa mất báo cáo miền Nam.
+    await tx
+      .delete(table)
+      .where(
+        and(eq(table.reportDate, d), inArray(table.employeeId, scopedIds)),
+      );
     if (records.length) await tx.insert(table).values(records);
   });
 
