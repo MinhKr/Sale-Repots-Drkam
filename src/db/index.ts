@@ -14,13 +14,15 @@ import * as schema from "./schema";
  *
  * Vì vậy:
  *  - `max: 1` — mỗi instance chỉ giữ 1 kết nối. Serverless xử lý tuần tự
- *    từng request nên không cần nhiều hơn.
+ *    từng request nên không cần nhiều hơn. **Đây là bản sửa thật sự.**
  *  - `idle_timeout` — nhả kết nối khi rảnh, không giữ mãi.
- *  - `prepare: false` — BẮT BUỘC khi đi qua pooler ở Transaction mode.
+ *  - `prepare: false` — bắt buộc khi đi qua pooler của Supabase.
  *
- * ⚠️ DATABASE_URL phải trỏ vào **Transaction pooler (port 6543)**, không phải
- * Session pooler (5432). Session mode cấp hẳn 1 kết nối Postgres cho mỗi
- * client nên không hợp với serverless.
+ * ⚠️ ĐỪNG đổi DATABASE_URL sang Transaction pooler (cổng 6543). Đã thử
+ * 2026-07-31: từ máy local thì kết nối được, nhưng trên Vercel mọi request
+ * TREO tới khi hết 300s ("Vercel Runtime Timeout Error"). Giữ **Session
+ * pooler cổng 5432** — với `max: 1` thì 15 client của Supabase đủ cho 15
+ * serverless instance chạy song song, thừa sức cho quy mô phòng Sale.
  */
 const globalForDb = globalThis as unknown as {
   _pg?: ReturnType<typeof postgres>;
