@@ -28,6 +28,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { StatusBadge } from "./status-badge";
 import { MonthTargetCard } from "./month-target-card";
+import { MonthFilter } from "./month-filter";
 import { PageHeader } from "@/components/page-header";
 import type { PersonalData } from "@/lib/dashboard/queries";
 import type { MetricGroup } from "@/lib/dashboard/personal-metrics";
@@ -79,13 +80,19 @@ function ChartTooltip({
 export function PersonalDashboard({
   data,
   metricsByCode,
+  month,
   monthLabel,
+  availableMonths,
   lockedToSelf,
 }: {
   data: PersonalData[];
   /** code nhân viên → các khối chỉ số theo tab, tổng hợp cả tháng */
   metricsByCode: Record<string, MetricGroup[]>;
+  /** tháng đang xem (yyyy-mm) */
+  month: string | null;
   monthLabel: string;
+  /** các tháng có dữ liệu — cho bộ lọc xem lại tháng cũ */
+  availableMonths: string[];
   /** Nhân viên thường: khóa vào chính họ, không có ô chọn người khác */
   lockedToSelf: boolean;
 }) {
@@ -102,6 +109,13 @@ export function PersonalDashboard({
         <PageHeader
           title="Dashboard cá nhân"
           description="Chưa có số liệu"
+          action={
+            <MonthFilter
+              months={availableMonths}
+              value={month}
+              basePath="/dashboard-ca-nhan"
+            />
+          }
         />
         <Card className="p-8 text-center text-sm text-muted-foreground">
           Chưa có dữ liệu báo cáo để hiển thị.
@@ -121,7 +135,13 @@ export function PersonalDashboard({
             : `Chọn nhân viên để xem chi tiết KPI · ${monthLabel}`
         }
         action={
-          lockedToSelf ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthFilter
+              months={availableMonths}
+              value={month}
+              basePath="/dashboard-ca-nhan"
+            />
+            {lockedToSelf ? null : (
           <Select
             value={empCode}
             onValueChange={(v) => setEmpCode(v ?? d.code)}
@@ -138,7 +158,8 @@ export function PersonalDashboard({
               ))}
             </SelectContent>
           </Select>
-          )
+            )}
+          </div>
         }
       />
 

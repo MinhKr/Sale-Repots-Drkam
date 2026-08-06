@@ -6,7 +6,12 @@ import { getPersonalMetrics } from "@/lib/dashboard/personal-metrics";
 export const metadata = { title: "Dashboard cá nhân" };
 export const dynamic = "force-dynamic";
 
-export default async function PersonalDashboardPage() {
+export default async function PersonalDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const { month: monthParam } = await searchParams;
   const me = await getCurrentUser();
   const fullAccess =
     me.isManager ||
@@ -17,8 +22,8 @@ export default async function PersonalDashboardPage() {
   const onlyCodes =
     fullAccess || !me.employee?.code ? undefined : [me.employee.code];
 
-  const { people, idByCode, month, monthLabel } =
-    await getPersonalDashboards(onlyCodes);
+  const { people, idByCode, month, monthLabel, availableMonths } =
+    await getPersonalDashboards(onlyCodes, monthParam);
 
   // Chỉ số chi tiết của tất cả người xem được — 4 truy vấn, gom sẵn theo code
   // để client đổi người là hiện ngay, không phải gọi lại server.
@@ -34,7 +39,9 @@ export default async function PersonalDashboardPage() {
     <PersonalDashboard
       data={people}
       metricsByCode={metricsByCode}
+      month={month}
       monthLabel={monthLabel}
+      availableMonths={availableMonths}
       lockedToSelf={!fullAccess}
     />
   );
