@@ -49,7 +49,7 @@ import {
 } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { MoneyInput } from "@/components/money-input";
-import { DateRangeFilter, useDateRange } from "./date-range-filter";
+import { ReportFilter, useReportFilter } from "./date-range-filter";
 import {
   deleteReport,
   saveLivestreamDay,
@@ -88,7 +88,8 @@ export function LivestreamTab({
   const [paste, setPaste] = useState("");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
-  const { range, setRange, active, inRange } = useDateRange();
+  const filter = useReportFilter(rows.map((r) => r.date));
+  const { active, inRange } = filter;
 
   function prefillFor(d: string): ValMap {
     const base = zeros(staff);
@@ -249,7 +250,7 @@ export function LivestreamTab({
         </div>
       )}
 
-      <DateRangeFilter range={range} setRange={setRange} active={active} />
+      <ReportFilter {...filter} />
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -360,7 +361,7 @@ export function LivestreamTab({
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     {active
-                      ? "Không có báo cáo nào trong khoảng ngày đã chọn."
+                      ? "Không có báo cáo nào trong kỳ đã chọn. Đổi tháng hoặc bấm “Xem tất cả”."
                       : "Chưa có báo cáo nào."}
                   </TableCell>
                 </TableRow>

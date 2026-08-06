@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DateRangeFilter, useDateRange } from "./date-range-filter";
+import { ReportFilter, useReportFilter } from "./date-range-filter";
 import {
   Dialog,
   DialogContent,
@@ -130,7 +130,8 @@ export function ReportTab({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
-  const { range, setRange, active, inRange } = useDateRange();
+  const filter = useReportFilter(rows.map((r) => r.date));
+  const { active, inRange } = filter;
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -254,7 +255,7 @@ export function ReportTab({
         </div>
       )}
 
-      <DateRangeFilter range={range} setRange={setRange} active={active} />
+      <ReportFilter {...filter} />
 
       {config.backlog && (
         <BacklogAlert
@@ -368,7 +369,7 @@ export function ReportTab({
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     {active
-                      ? "Không có báo cáo nào trong khoảng ngày đã chọn."
+                      ? "Không có báo cáo nào trong kỳ đã chọn. Đổi tháng hoặc bấm “Xem tất cả”."
                       : "Chưa có báo cáo nào."}
                   </TableCell>
                 </TableRow>
