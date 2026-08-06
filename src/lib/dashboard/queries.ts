@@ -589,6 +589,8 @@ export interface PersonalDashboardPayload {
   idByCode: Record<string, string>;
   month: string | null;
   monthLabel: string;
+  /** các tháng có dữ liệu (yyyy-mm), mới → cũ — cho bộ lọc tháng */
+  availableMonths: string[];
 }
 
 /**
@@ -596,11 +598,13 @@ export interface PersonalDashboardPayload {
  *
  * `onlyCodes` giới hạn danh sách trả về (nhân viên thường chỉ được xem chính
  * mình — PM chốt 2026-07-31c). Bỏ trống = trả hết, cho Lead/Admin.
+ * `selectedMonth` (yyyy-mm) chọn tháng để xem lại; bỏ trống = tháng mới nhất.
  */
 export async function getPersonalDashboards(
   onlyCodes?: string[],
+  selectedMonth?: string,
 ): Promise<PersonalDashboardPayload> {
-  const base = await loadBase();
+  const base = await loadBase(selectedMonth);
   const ranking = buildRanking(base);
   const total = ranking.length;
   const monthLbl = monthLabel(base.month);
@@ -608,7 +612,13 @@ export async function getPersonalDashboards(
     base.employees.map((e) => [e.code, e.id]),
   );
   if (!base.anchor)
-    return { people: [], idByCode, month: base.month, monthLabel: monthLbl };
+    return {
+      people: [],
+      idByCode,
+      month: base.month,
+      monthLabel: monthLbl,
+      availableMonths: base.availableMonths,
+    };
 
   const empByCode = new Map(base.employees.map((e) => [e.code, e]));
   const dailyTarget = (target: number) =>
@@ -646,5 +656,11 @@ export async function getPersonalDashboards(
     };
   });
 
-  return { people, idByCode, month: base.month, monthLabel: monthLbl };
+  return {
+    people,
+    idByCode,
+    month: base.month,
+    monthLabel: monthLbl,
+    availableMonths: base.availableMonths,
+  };
 }

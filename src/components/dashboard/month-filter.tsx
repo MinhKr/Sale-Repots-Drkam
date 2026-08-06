@@ -17,15 +17,18 @@ function label(m: string) {
 }
 
 /**
- * Bộ lọc tháng cho Dashboard trang chủ. Đổi tháng = đổi query `?month=` để
- * server component render lại số của tháng đó.
+ * Bộ lọc tháng dùng chung cho Trang chủ và Dashboard cá nhân. Đổi tháng =
+ * đổi query `?month=` để server component render lại số của tháng đó.
  */
 export function MonthFilter({
   months,
   value,
+  basePath = "/home",
 }: {
   months: string[];
   value: string | null;
+  /** Trang đang đặt bộ lọc — quyết định điều hướng về đâu khi đổi tháng */
+  basePath?: string;
 }) {
   const router = useRouter();
   if (!months.length || !value) return null;
@@ -33,7 +36,7 @@ export function MonthFilter({
   return (
     <Select
       value={value}
-      onValueChange={(v) => v && router.push(`/home?month=${v}`)}
+      onValueChange={(v) => v && router.push(`${basePath}?month=${v}`)}
       items={Object.fromEntries(months.map((m) => [m, label(m)]))}
     >
       <SelectTrigger className="w-44">
