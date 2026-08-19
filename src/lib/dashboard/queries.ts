@@ -1,6 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { statusFromProgress } from "@/lib/mock/dashboard";
+import { DEPT_LABEL } from "@/lib/mock/employees";
+import { KPI_DEPTS } from "@/lib/mock/kpi";
 import { SAO_XAU_CONFIG, SAO_XAU_GOAL_TI_LE_XU_LY } from "@/lib/mock/reports";
 import {
   listOpenings,
@@ -38,6 +40,13 @@ function mondayOf(iso: string) {
   return fmtIso(d);
 }
 const monthKey = (iso: string) => iso.slice(0, 7); // yyyy-mm
+/** "2026-08" → "2026-07" */
+function prevMonthKey(m: string) {
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 1
+    ? `${y - 1}-12`
+    : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
 function daysInMonth(iso: string) {
   const [y, m] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -210,6 +219,27 @@ function sumRange(map: Map<string, number>, from: string, to: string) {
 
 /* --------------------------- Dashboard team ----------------------------- */
 
+/**
+ * Tiến độ doanh thu của MỘT tổ trong phòng Sale (Sale / CSKH / Livestream).
+ *
+ * ⚠️ Tổng `revenue` của 3 tổ KHÔNG chắc bằng doanh thu toàn phòng, và tổng
+ * `target` cũng không chắc bằng `mucTieuThang`: nếu người ở bộ phận ADMIN/LEAD
+ * có dòng báo cáo doanh thu hoặc có KPI thì phần đó nằm ngoài 3 tổ này. Vì vậy
+ * mỗi thanh con luôn đo theo mục tiêu của CHÍNH tổ đó, không phải phần trăm
+ * đóng góp vào thanh cha.
+ */
+export interface DeptProgress {
+  dept: DeptCode;
+  /** nhãn hiển thị, vd "Livestream" */
+  label: string;
+  revenue: number;
+  target: number;
+  progress: number;
+  status: KpiStatus;
+  /** số NV của tổ có phát sinh doanh thu trong tháng */
+  activeCount: number;
+}
+
 export interface TeamDashboard {
   summary: {
     homQua: { value: number; deltaVsTruoc: number };
@@ -219,6 +249,8 @@ export interface TeamDashboard {
   };
   revenue14d: RevenuePoint[];
   ranking: RankRow[];
+  /** tiến độ từng tổ trong phòng — thanh con của thanh tổng */
+  deptProgress: DeptProgress[];
   anchorLabel: string | null;
   /** các tháng có dữ liệu (yyyy-mm), mới → cũ */
   availableMonths: string[];
@@ -244,6 +276,7 @@ export async function getTeamDashboard(
       },
       revenue14d: [],
       ranking: [],
+      deptProgress: [],
       anchorLabel: null,
       availableMonths,
       month,
@@ -298,6 +331,7 @@ export async function getTeamDashboard(
     },
     revenue14d,
     ranking: buildRanking(base),
+    deptProgress: buildDeptProgress(base),
     anchorLabel: ddmm(anchor),
     availableMonths,
     month,
@@ -346,6 +380,42 @@ function empMonthRevenue(
   return s;
 }
 
+/**
+ * Gộp doanh thu + mục tiêu theo tổ cho tháng anchor.
+ *
+ * Dùng đúng KPI_DEPTS (SALE / CSKH / LIVESTREAM) — ADMIN và LEAD không có
+ * mục tiêu bán hàng nên không hiện thành thanh con, giống cách bảng xếp hạng
+ * đang loại 2 bộ phận này.
+ */
+function buildDeptProgress(base: Base): DeptProgress[] {
+  const { anchor, empDaily, employees, targetById } = base;
+  if (!anchor) return [];
+  const mKey = monthKey(anchor);
+
+  return KPI_DEPTS.map((dept) => {
+    const members = employees.filter((e) => e.dept === dept);
+    let revenue = 0;
+    let target = 0;
+    let activeCount = 0;
+    for (const e of members) {
+      const rev = empMonthRevenue(empDaily, e.id, mKey);
+      revenue += rev;
+      target += targetById.get(e.id) ?? 0;
+      if (rev > 0) activeCount += 1;
+    }
+    const progress = ratio(revenue, target);
+    return {
+      dept,
+      label: DEPT_LABEL[dept],
+      revenue,
+      target,
+      progress,
+      status: statusFromProgress(progress) as KpiStatus,
+      activeCount,
+    } satisfies DeptProgress;
+  });
+}
+
 /* --------------------------- Khối Sao Xấu ------------------------------- */
 
 /** Một NV có nhập báo cáo Sao Xấu trong tháng đang xem. */
@@ -363,10 +433,26 @@ export interface BadReviewSummary {
   month: string | null;
   monthLabel: string;
   /**
-   * Tồn lũy kế = tồn đầu kỳ + Σ(sao xấu mới − đã xử lý) từ mốc đầu kỳ đến HẾT
-   * tháng đang xem.
+   * Tháng đang xem CÓ ít nhất 1 dòng báo cáo Sao Xấu hay không.
+   *
+   * Quan trọng: "chưa ai nhập" và "có nhập, phát sinh 0 case" nhìn ra số liệu
+   * là y hệt nhau. Tách cờ này để card nói rõ, tránh việc chưa nhập liệu bị
+   * đọc thành tháng sạch sao xấu.
+   */
+  hasData: boolean;
+  /**
+   * Tồn lũy kế = tồn mang sang + (mới − đã xử lý) của CHÍNH tháng đang xem.
+   * Đây là số tồn tại thời điểm cuối tháng đang xem.
    */
   tonLuyKe: number;
+  /**
+   * Tồn mang sang từ các tháng TRƯỚC tháng đang xem (= tồn chốt cuối tháng
+   * trước). Khách gọi là "lũy kế T<tháng trước>", trong sheet của họ là một
+   * tab riêng — nên ở đây cũng phải là một con số riêng, không gộp vào tổng.
+   */
+  carriedOver: number;
+  /** nhãn tháng mang sang, vd "tháng 07/2026" */
+  carriedOverLabel: string;
   /** tồn mang sang từ mốc đầu kỳ đang áp dụng */
   tonDauKy: number;
   /** nhãn mốc đầu kỳ, vd "đầu tháng 07/2026" — null nếu chưa khai báo mốc nào */
@@ -405,7 +491,10 @@ const BACKLOG = SAO_XAU_CONFIG.backlog!;
 const EMPTY_BAD_REVIEW: BadReviewSummary = {
   month: null,
   monthLabel: "",
+  hasData: false,
   tonLuyKe: 0,
+  carriedOver: 0,
+  carriedOverLabel: "",
   tonDauKy: 0,
   tonDauKyLabel: null,
   threshold: BACKLOG.threshold,
@@ -431,9 +520,14 @@ const EMPTY_BAD_REVIEW: BadReviewSummary = {
  * nên không nằm trong `loadBase()`; đọc riêng ở đây (JOIN sang employees để lấy
  * tên người phụ trách) cùng bảng mốc tồn đầu kỳ, 2 query chạy song song.
  *
- * `selectedMonth` dùng chung bộ lọc tháng của Trang chủ; nếu tháng đó không có
- * báo cáo Sao Xấu thì rơi về tháng mới nhất CÓ dữ liệu (card tự hiện nhãn tháng
- * của mình nên số liệu không bao giờ bị gán nhầm kỳ).
+ * `selectedMonth` LUÔN được tôn trọng, kể cả khi tháng đó chưa có dòng báo cáo
+ * Sao Xấu nào.
+ *
+ * ⚠️ Trước đây hàm này tự rơi về tháng mới nhất CÓ dữ liệu. Hệ quả: trang lọc
+ * tháng 08 nhưng khối Sao Xấu lại ghi "tháng 07" (T8 chưa ai nhập), khách đọc
+ * thành sai kỳ. Nay tháng nào chưa có dữ liệu thì hiện đúng tháng đó với
+ * `hasData: false` để card báo "chưa có báo cáo", còn phần tồn của các tháng
+ * trước vẫn hiện qua `carriedOver`.
  *
  * Lưu ý "Chờ khách sửa": đây là số case ĐANG treo tại một thời điểm chứ không
  * phải lượng phát sinh, nên lấy giá trị của ngày mới nhất có dữ liệu trong
@@ -475,8 +569,13 @@ export async function getBadReviewSummary(
   const months = [...new Set(rows.map((r) => monthKey(r.date as string)))].sort(
     (a, b) => b.localeCompare(a),
   );
+  // Bộ lọc của Trang chủ là nguồn quyết định. Chỉ tự chọn khi không truyền vào
+  // (hoặc truyền chuỗi rác từ query string).
   const month =
-    selectedMonth && months.includes(selectedMonth) ? selectedMonth : months[0];
+    selectedMonth && /^\d{4}-\d{2}$/.test(selectedMonth)
+      ? selectedMonth
+      : months[0];
+  const monthStart = month + "-01";
   const monthEnd = month + "-32"; // so sánh chuỗi: mọi ngày trong tháng đều < "-32"
 
   // Mốc đầu kỳ áp dụng: chỉ cộng net từ mốc đó trở đi, tránh đếm trùng phần
@@ -498,7 +597,9 @@ export async function getBadReviewSummary(
     star2: 0,
     star3: 0,
   };
-  let tonLuyKe = opening?.balance ?? 0;
+  /** Tồn chốt cuối tháng trước = mốc đầu kỳ + net của mọi ngày TRƯỚC tháng này */
+  let carriedOver = opening?.balance ?? 0;
+  let hasData = false;
   let pending = 0;
   let pendingDate = "";
   const byEmp = new Map<string, BadReviewHandler>();
@@ -508,10 +609,17 @@ export async function getBadReviewSummary(
     const n = r.newBad ?? 0;
     const s = r.resolved ?? 0;
 
-    // Tồn lũy kế: cộng dồn từ mốc đầu kỳ đến hết tháng đang xem
-    if (date <= monthEnd && (!openingStart || date >= openingStart))
-      tonLuyKe += n - s;
-    if (monthKey(date) !== month) continue;
+    // Trước mốc đầu kỳ thì bỏ — phần đó đã nằm sẵn trong số chốt, cộng nữa là
+    // đếm trùng. Sau tháng đang xem cũng bỏ, vì đang nhìn về quá khứ của tháng.
+    if (openingStart && date < openingStart) continue;
+    if (date > monthEnd) continue;
+
+    if (date < monthStart) {
+      carriedOver += n - s;
+      continue;
+    }
+
+    hasData = true;
 
     acc.newBad += n;
     acc.resolved += s;
@@ -550,7 +658,11 @@ export async function getBadReviewSummary(
   return {
     month,
     monthLabel: monthLabel(month),
-    tonLuyKe,
+    hasData,
+    // Tồn cuối tháng đang xem = mang sang + net phát sinh trong tháng
+    tonLuyKe: carriedOver + acc.newBad - acc.resolved,
+    carriedOver,
+    carriedOverLabel: monthLabel(prevMonthKey(month)),
     tonDauKy: opening?.balance ?? 0,
     tonDauKyLabel: opening
       ? `đầu ${monthLabel(openingKey(opening.year, opening.month))}`

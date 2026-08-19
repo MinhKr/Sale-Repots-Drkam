@@ -24,14 +24,20 @@ export default async function HomePage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const { month: monthParam } = await searchParams;
-  // 2 truy vấn độc lập (doanh thu / sao xấu) — chạy song song, không nối tiếp.
-  const [
-    { summary, revenue14d, ranking, availableMonths, month, monthLabel },
-    badReview,
-  ] = await Promise.all([
-    getTeamDashboard(monthParam),
-    getBadReviewSummary(monthParam),
-  ]);
+  // Nối tiếp có chủ đích (không Promise.all): getTeamDashboard là nơi chốt
+  // tháng đang xem — nó biết tháng nào có doanh thu — rồi khối Sao Xấu phải bám
+  // ĐÚNG tháng đó. Trước đây 2 hàm tự chọn tháng riêng nên header ghi "tháng 08"
+  // mà khối Sao Xấu ghi "tháng 07", khách đọc thành sai kỳ.
+  const {
+    summary,
+    revenue14d,
+    ranking,
+    deptProgress,
+    availableMonths,
+    month,
+    monthLabel,
+  } = await getTeamDashboard(monthParam);
+  const badReview = await getBadReviewSummary(month ?? monthParam);
   const { homQua, tuanNay, thangNay, mucTieuThang } = summary;
 
   return (
@@ -54,6 +60,7 @@ export default async function HomePage({
         achieved={thangNay.value}
         target={mucTieuThang}
         period={monthLabel}
+        depts={deptProgress}
       />
 
       {/* 3 KPI doanh thu */}
