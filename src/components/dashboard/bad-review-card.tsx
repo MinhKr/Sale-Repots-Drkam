@@ -13,6 +13,9 @@ import { cn } from "@/lib/utils";
 export function BadReviewCard({ data }: { data: BadReviewSummary }) {
   const {
     tonLuyKe,
+    hasData,
+    carriedOver,
+    carriedOverLabel,
     tonDauKy,
     tonDauKyLabel,
     threshold,
@@ -76,7 +79,7 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              Tồn sao xấu lũy kế · {monthLabel}
+              Sao xấu · {monthLabel}
             </p>
             <div className="mt-0.5 flex items-baseline gap-1.5">
               <span
@@ -88,12 +91,33 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
                 {formatNumber(tonLuyKe)}
               </span>
               <span className="text-sm text-muted-foreground">
-                / {formatNumber(threshold)} sao xấu
+                / {formatNumber(threshold)} sao xấu tồn
               </span>
             </div>
+            {/* Tách bạch 2 phần khách yêu cầu: lũy kế mang sang từ tháng trước
+                và phần phát sinh trong chính tháng đang xem. */}
+            <p className="mt-1 text-xs text-muted-foreground">
+              <span className="font-mono font-semibold tabular-nums text-foreground">
+                {formatNumber(carriedOver)}
+              </span>{" "}
+              lũy kế mang sang từ {carriedOverLabel}
+              {hasData && (
+                <>
+                  {" · "}
+                  <span className="font-mono font-semibold tabular-nums text-foreground">
+                    +{formatNumber(newBad)}
+                  </span>{" "}
+                  mới{" · "}
+                  <span className="font-mono font-semibold tabular-nums text-foreground">
+                    −{formatNumber(resolved)}
+                  </span>{" "}
+                  đã gỡ trong tháng
+                </>
+              )}
+            </p>
             {tonDauKy > 0 && tonDauKyLabel && (
               <p className="mt-0.5 text-xs text-muted-foreground">
-                gồm {formatNumber(tonDauKy)} mang sang từ {tonDauKyLabel}
+                trong đó {formatNumber(tonDauKy)} là số chốt {tonDauKyLabel}
               </p>
             )}
           </div>
@@ -116,33 +140,44 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
         </div>
       </div>
 
-      {/* Hàng số liệu tháng */}
-      <div className="mt-4 grid grid-cols-2 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Metric label="Sao xấu mới" value={formatNumber(newBad)} />
-        <Metric label="Đã xử lý / gỡ" value={formatNumber(resolved)} />
-        <Metric
-          label={`Tỉ lệ xử lý · MT ${formatPercent(goal, 0)}`}
-          value={formatPercent(tiLeXuLy, 1)}
-          className={goalMet ? "text-success-600" : "text-danger-600"}
-        />
-        <Metric label="Khách đã sửa 5★" value={formatNumber(fixed5)} />
-        <Metric
-          label="Đang chờ KH sửa"
-          value={formatNumber(pending)}
-          className={pending > 0 ? "text-warning-600" : undefined}
-        />
-        <Metric
-          label="Không LH được KH"
-          value={formatNumber(noContact)}
-          className={noContact > 0 ? "text-danger-600" : undefined}
-        />
-      </div>
+      {hasData ? (
+        <>
+          {/* Hàng số liệu tháng */}
+          <div className="mt-4 grid grid-cols-2 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+            <Metric label="Sao xấu mới" value={formatNumber(newBad)} />
+            <Metric label="Đã xử lý / gỡ" value={formatNumber(resolved)} />
+            <Metric
+              label={`Tỉ lệ xử lý · MT ${formatPercent(goal, 0)}`}
+              value={formatPercent(tiLeXuLy, 1)}
+              className={goalMet ? "text-success-600" : "text-danger-600"}
+            />
+            <Metric label="Khách đã sửa 5★" value={formatNumber(fixed5)} />
+            <Metric
+              label="Đang chờ KH sửa"
+              value={formatNumber(pending)}
+              className={pending > 0 ? "text-warning-600" : undefined}
+            />
+            <Metric
+              label="Không LH được KH"
+              value={formatNumber(noContact)}
+              className={noContact > 0 ? "text-danger-600" : undefined}
+            />
+          </div>
 
-      {/* Nguồn phát sinh */}
-      <p className="mt-3 text-xs text-muted-foreground">
-        Nguồn phát sinh: Shopee {formatNumber(shopee)} · TikTok{" "}
-        {formatNumber(tiktok)}
-      </p>
+          {/* Nguồn phát sinh */}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Nguồn phát sinh: Shopee {formatNumber(shopee)} · TikTok{" "}
+            {formatNumber(tiktok)}
+          </p>
+        </>
+      ) : (
+        /* "Chưa ai nhập" khác hẳn "có nhập, phát sinh 0" — nhìn số liệu không
+           phân biệt được, nên phải nói thẳng ra. */
+        <p className="mt-4 rounded-lg border border-dashed border-border bg-card/60 px-3 py-2.5 text-sm text-muted-foreground">
+          Chưa có báo cáo Sao Xấu nào trong {monthLabel}. Số tồn phía trên là
+          phần lũy kế mang sang từ {carriedOverLabel}.
+        </p>
+      )}
 
       {/* Người phụ trách */}
       {handlers.length > 0 && (
