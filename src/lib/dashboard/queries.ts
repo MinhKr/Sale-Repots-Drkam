@@ -532,14 +532,16 @@ export interface BadReviewSummary {
   resolved: number;
   /**
    * Tách "Sao xấu mới" theo việc có lấy được SĐT khách trên sàn hay không.
+   * withPhone + noPhone === newBad.
    *
-   * `unclassified` là phần nhập TRƯỚC ngày có ô này (cột DB đang NULL) — cố ý
-   * không dồn vào `noPhone`, vì không ai biết thực tế 59 case của T7 ra sao.
-   * withPhone + noPhone + unclassified === newBad.
+   * ⚠️ Dòng nhập TRƯỚC ngày có ô "Khách có SĐT" (cột DB là NULL) được tính hết
+   * vào `noPhone` theo yêu cầu của khách 2026-08-20 — họ muốn đúng 2 nhóm, không
+   * muốn thêm nhóm "chưa phân loại". Nghĩa là 59 case của T7 hiện thành "không
+   * có SĐT" dù thực tế không ai từng ghi nhận. Cột DB vẫn giữ NULL (khác 0) nên
+   * nếu sau này muốn tách lại thì thông tin chưa mất.
    */
   withPhone: number;
   noPhone: number;
-  unclassified: number;
   /** đã xử lý / sao xấu mới trong tháng */
   tiLeXuLy: number;
   /** sao khách đã sửa lại thành 5★ trong tháng */
@@ -588,7 +590,6 @@ const EMPTY_BAD_REVIEW: BadReviewSummary = {
   resolved: 0,
   withPhone: 0,
   noPhone: 0,
-  unclassified: 0,
   tiLeXuLy: 0,
   fixed5: 0,
   pending: 0,
@@ -682,7 +683,6 @@ export async function getBadReviewSummary(
     resolved: 0,
     withPhone: 0,
     noPhone: 0,
-    unclassified: 0,
     fixed5: 0,
     noContact: 0,
     warehouseIssue: 0,
@@ -720,14 +720,10 @@ export async function getBadReviewSummary(
 
     acc.newBad += n;
     acc.resolved += s;
-    // NULL = dòng cũ chưa phân loại → dồn hết vào `unclassified`, không đoán.
-    if (r.newBadWithPhone == null) {
-      acc.unclassified += n;
-    } else {
-      const wp = Math.min(r.newBadWithPhone, n); // chặn dữ liệu lỗi làm âm
-      acc.withPhone += wp;
-      acc.noPhone += n - wp;
-    }
+    // NULL (dòng nhập trước khi có ô này) tính như 0 → rơi hết vào noPhone.
+    const wp = Math.min(r.newBadWithPhone ?? 0, n); // chặn dữ liệu lỗi làm âm
+    acc.withPhone += wp;
+    acc.noPhone += n - wp;
     acc.fixed5 += r.fixed5Total ?? 0;
     acc.noContact += r.noContact ?? 0;
     acc.warehouseIssue += r.warehouseIssue ?? 0;

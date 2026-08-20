@@ -25,10 +25,10 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
     resolved,
     withPhone,
     noPhone,
-    unclassified,
     tiLeXuLy,
     fixed5,
     pending,
+    warehouseIssue,
     productEfficacy,
     productDefect,
     shopee,
@@ -146,12 +146,7 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
 
       {hasData ? (
         <>
-          <PhoneSplit
-            newBad={newBad}
-            withPhone={withPhone}
-            noPhone={noPhone}
-            unclassified={unclassified}
-          />
+          <PhoneSplit newBad={newBad} withPhone={withPhone} noPhone={noPhone} />
 
           {/* Hàng số liệu tháng */}
           <div className="mt-4 grid grid-cols-2 gap-y-3 sm:grid-cols-4">
@@ -168,8 +163,13 @@ export function BadReviewCard({ data }: { data: BadReviewSummary }) {
               value={formatNumber(pending)}
               className={pending > 0 ? "text-warning-600" : undefined}
             />
-            {/* Phân loại vấn đề. "Vấn đề kho" vẫn nhập ở form nhưng không lên
-                tổng quan (khách chốt 2026-08-20) — xem ở dòng mở rộng tab Sao Xấu. */}
+            {/* Phân loại vấn đề — đủ 3 loại như nhóm cùng tên ở form nhập, để
+                so được nguyên nhân nào đang là chính. */}
+            <Metric
+              label="Vấn đề kho"
+              value={formatNumber(warehouseIssue)}
+              className={warehouseIssue > 0 ? "text-danger-600" : undefined}
+            />
             <Metric
               label="Hiệu quả SP"
               value={formatNumber(productEfficacy)}
@@ -260,19 +260,18 @@ function Metric({
  * được khách thì không xin sửa sao được — nên tách ra để tỉ lệ xử lý đọc công
  * bằng hơn.
  *
- * Nhóm thứ 3 "chưa phân loại" là các dòng nhập TRƯỚC ngày có ô này (cột DB
- * đang NULL). Cố tình không dồn vào "không có SĐT" để khỏi khai khống.
+ * ⚠️ Dòng nhập trước ngày có ô "Khách có SĐT" nằm hết ở nhóm "không có SĐT"
+ * (khách chốt 2026-08-20: chỉ muốn đúng 2 nhóm). Xem chú thích ở
+ * BadReviewSummary.withPhone.
  */
 function PhoneSplit({
   newBad,
   withPhone,
   noPhone,
-  unclassified,
 }: {
   newBad: number;
   withPhone: number;
   noPhone: number;
-  unclassified: number;
 }) {
   if (newBad <= 0) return null;
   const seg = (n: number) => `${(n / newBad) * 100}%`;
@@ -283,36 +282,25 @@ function PhoneSplit({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Sao xấu mới {formatNumber(newBad)} — theo số điện thoại khách
         </p>
-        {withPhone + noPhone > 0 && (
-          <p className="text-xs text-muted-foreground">
-            lấy được SĐT{" "}
-            <span className="font-mono font-semibold tabular-nums text-foreground">
-              {formatPercent(withPhone / (withPhone + noPhone), 0)}
-            </span>{" "}
-            số case đã phân loại
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          lấy được SĐT{" "}
+          <span className="font-mono font-semibold tabular-nums text-foreground">
+            {formatPercent(withPhone / newBad, 0)}
+          </span>{" "}
+          số case
+        </p>
       </div>
 
-      {/* Thanh xếp chồng — 3 nhóm cộng lại đúng bằng Sao xấu mới */}
+      {/* Thanh xếp chồng — 2 nhóm cộng lại đúng bằng Sao xấu mới */}
       <div className="mt-2 flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
         <div className="bg-success-600" style={{ width: seg(withPhone) }} />
         <div className="bg-danger-600" style={{ width: seg(noPhone) }} />
-        <div className="bg-foreground/20" style={{ width: seg(unclassified) }} />
       </div>
 
       {/* Chú giải: luôn kèm chữ + số, không chỉ dựa vào màu */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         <Legend color="bg-success-600" label="Có SĐT" value={withPhone} />
         <Legend color="bg-danger-600" label="Không có SĐT" value={noPhone} />
-        {unclassified > 0 && (
-          <Legend
-            color="bg-foreground/20"
-            label="Chưa phân loại"
-            value={unclassified}
-            hint="nhập trước khi có ô này"
-          />
-        )}
       </div>
     </div>
   );
@@ -322,12 +310,10 @@ function Legend({
   color,
   label,
   value,
-  hint,
 }: {
   color: string;
   label: string;
   value: number;
-  hint?: string;
 }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -336,7 +322,6 @@ function Legend({
       <span className="font-mono font-semibold tabular-nums">
         {formatNumber(value)}
       </span>
-      {hint && <span className="text-muted-foreground">({hint})</span>}
     </span>
   );
 }
