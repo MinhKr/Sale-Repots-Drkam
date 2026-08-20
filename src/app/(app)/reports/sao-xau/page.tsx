@@ -17,13 +17,11 @@ export default async function SaoXauReportPage() {
     listReports("SAO_XAU", access.visibleIds),
     listOpenings(),
   ]);
-  // Bảng liệt kê MỌI kỳ nên tồn lũy kế lấy mốc đầu kỳ SỚM NHẤT đã khai báo.
-  const opening = openings[0]?.balance ?? 0;
   return (
     <ReportTab
       tab="SAO_XAU"
       initialRows={rows}
-      opening={opening}
+      openings={openings}
       perm={access.perm}
     />
   );

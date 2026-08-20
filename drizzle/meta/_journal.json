@@ -71,6 +71,20 @@
       "when": 1785470945068,
       "tag": "0009_smiling_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787190289543,
+      "tag": "0010_graceful_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787192245372,
+      "tag": "0011_nifty_silver_surfer",
+      "breakpoints": true
     }
   ]
 }

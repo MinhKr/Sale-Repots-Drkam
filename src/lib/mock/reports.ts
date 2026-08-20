@@ -14,7 +14,10 @@ export interface InputField {
 
 /** Cảnh báo tồn lũy kế theo ngưỡng (tab Sao Xấu) */
 export interface BacklogConfig {
+  /** nhãn khi xem TẤT CẢ các kỳ — lúc đó mới thật sự là lũy kế */
   label: string;
+  /** nhãn khi đang lọc theo 1 kỳ; ghép thành "<periodLabel> · tháng 08/2026" */
+  periodLabel?: string;
   unit: string;
   /** ngưỡng cảnh báo ĐỎ — tồn lũy kế ≥ ngưỡng này thì báo đỏ */
   threshold: number;
@@ -53,6 +56,13 @@ export interface ReportConfig {
   title: string;
   /** Bộ phận được phép nhập tab này (dùng cho selector nhân viên) */
   allowedDepts: DeptCode[];
+  /**
+   * Nhân viên chọn sẵn khi MỞ FORM TẠO MỚI (id trong EMPLOYEES).
+   * Chỉ áp dụng nếu người đang đăng nhập được phép nhập hộ người này; không
+   * thì rơi về người đầu danh sách như cũ. Sửa dòng cũ thì luôn giữ đúng
+   * nhân viên của dòng đó.
+   */
+  defaultEmployeeId?: string;
   inputs: InputField[];
   /** Ô nhập chữ (nếu có) — hiện dưới các ô số trong form */
   textInputs?: TextField[];
@@ -185,9 +195,15 @@ export const SAO_XAU_CONFIG: ReportConfig = {
   tab: "SAO_XAU",
   title: "Sao Xấu",
   allowedDepts: ["CSKH", "ADMIN", "LEAD"],
+  // Hương là người phụ trách Sao Xấu (khách chốt 2026-08-20) — chọn sẵn cho
+  // đỡ phải bấm mỗi lần nhập.
+  defaultEmployeeId: "cskh-huong",
   // Bộ ô nhập bám theo sheet "Nhập liệu ngày" của khách (7/2026).
   inputs: [
     { key: "newBad", label: "Sao xấu mới", kind: "int", group: "Phát sinh" },
+    // Chỉ nhập số case LẤY ĐƯỢC SĐT trên sàn; phần còn lại của "Sao xấu mới"
+    // ngầm hiểu là không có SĐT (ô xanh "Không có SĐT" tự tính bên dưới).
+    { key: "newBadWithPhone", label: "Khách có SĐT", kind: "int", group: "Phát sinh" },
     { key: "resolved", label: "Đã xử lý / gỡ", kind: "int", group: "Phát sinh" },
     { key: "star1", label: "1★", kind: "int", group: "Phân loại sao" },
     { key: "star2", label: "2★", kind: "int", group: "Phân loại sao" },
@@ -199,7 +215,8 @@ export const SAO_XAU_CONFIG: ReportConfig = {
     { key: "pendingShopee", label: "Shopee", kind: "int", group: "Chờ khách sửa" },
     { key: "pendingTiktok", label: "TikTok", kind: "int", group: "Chờ khách sửa" },
     { key: "warehouseIssue", label: "Vấn đề kho", kind: "int", group: "Phân loại vấn đề" },
-    { key: "noContact", label: "Không LH được KH", kind: "int", group: "Phân loại vấn đề" },
+    { key: "productEfficacy", label: "Hiệu quả SP", kind: "int", group: "Phân loại vấn đề" },
+    { key: "productDefect", label: "Lỗi SP", kind: "int", group: "Phân loại vấn đề" },
   ],
   textInputs: [
     {
@@ -217,6 +234,14 @@ export const SAO_XAU_CONFIG: ReportConfig = {
   noteLabel: "Ghi chú xử lý",
   computed: [
     { key: "tonNgay", label: "Tồn trong ngày", kind: "int", compute: (v) => v.newBad - v.resolved },
+    {
+      key: "newBadNoPhone",
+      label: "Khách không có SĐT",
+      kind: "int",
+      // Kẹp về 0: nếu lỡ nhập "có SĐT" nhiều hơn "sao xấu mới" thì hiện 0 chứ
+      // không hiện số âm (zod cũng chặn ở server, đây là lớp phòng thủ thứ 2).
+      compute: (v) => Math.max(v.newBad - v.newBadWithPhone, 0),
+    },
     {
       key: "tiLeXuLy",
       label: "Tỉ lệ xử lý",
@@ -238,14 +263,17 @@ export const SAO_XAU_CONFIG: ReportConfig = {
   ],
   tableMetrics: [
     { key: "newBad", label: "Sao xấu mới", kind: "int" },
+    { key: "newBadWithPhone", label: "Có SĐT", kind: "int" },
     { key: "resolved", label: "Đã xử lý", kind: "int" },
     { key: "tonNgay", label: "Tồn/ngày", kind: "int" },
     { key: "fixed5Total", label: "Sửa 5★", kind: "int" },
     { key: "pendingTotal", label: "Chờ sửa", kind: "int" },
-    { key: "noContact", label: "Không LH được", kind: "int" },
+    { key: "productEfficacy", label: "Hiệu quả SP", kind: "int" },
+    { key: "productDefect", label: "Lỗi SP", kind: "int" },
   ],
   backlog: {
     label: "Tồn sao xấu lũy kế",
+    periodLabel: "Tồn sao xấu",
     unit: "sao xấu",
     // Ngưỡng lấy theo sheet "KPI & Cấu hình" của khách (ĐỎ 50 · VÀNG 30)
     threshold: 50,

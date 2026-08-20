@@ -60,9 +60,14 @@ export function ReportForm({
     [employees],
   );
 
-  const [employeeId, setEmployeeId] = useState(
-    initial?.employeeId ?? employees[0]?.id ?? "",
-  );
+  const [employeeId, setEmployeeId] = useState(() => {
+    if (initial?.employeeId) return initial.employeeId;
+    const preferred = config.defaultEmployeeId;
+    // Chỉ dùng người mặc định nếu người đang đăng nhập thật sự nhập hộ được —
+    // không thì ô chọn sẽ trỏ tới người không có trong danh sách.
+    if (preferred && employees.some((e) => e.id === preferred)) return preferred;
+    return employees[0]?.id ?? "";
+  });
   // Tạo mới → mặc định ngày hôm nay (form remount mỗi lần mở dialog nên luôn cập nhật)
   const [date, setDate] = useState(initial?.date ?? todayIso());
   const [values, setValues] = useState<Record<string, number>>(

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { todayIso } from "@/lib/format";
+import { formatDateVn, todayIso } from "@/lib/format";
 
 /**
  * Bộ lọc dùng chung cho các tab báo cáo: **chọn tháng** + **khoảng ngày**.
@@ -80,7 +80,32 @@ export function useReportFilter(dates: string[]) {
     };
   }, [range.from, range.to, rangeActive, month]);
 
-  return { range, setRange, month, setMonth, months, active, inRange, reset };
+  /**
+   * Nhãn kỳ đang lọc, để khối cảnh báo tồn nói rõ nó đang tính phạm vi nào.
+   * null = đang "Xem tất cả".
+   */
+  const periodLabel = useMemo(() => {
+    if (rangeActive) {
+      if (range.from && range.to)
+        return `${formatDateVn(range.from)} → ${formatDateVn(range.to)}`;
+      if (range.from) return `từ ${formatDateVn(range.from)}`;
+      return `đến ${formatDateVn(range.to)}`;
+    }
+    if (month !== ALL_MONTHS) return monthOptionLabel(month).toLowerCase();
+    return null;
+  }, [range.from, range.to, rangeActive, month]);
+
+  return {
+    range,
+    setRange,
+    month,
+    setMonth,
+    months,
+    active,
+    inRange,
+    reset,
+    periodLabel,
+  };
 }
 
 export function ReportFilter({

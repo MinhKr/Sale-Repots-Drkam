@@ -43,7 +43,18 @@ function valuesSchema(tab: ConfigTab) {
   for (const f of CONFIG_BY_TAB[tab].inputs) {
     shape[f.key] = f.kind === "float" ? nonNegNumber : nonNegInt;
   }
-  return z.object(shape);
+  const obj = z.object(shape);
+  if (tab !== "SAO_XAU") return obj;
+
+  // "Khách có SĐT" là một phần CỦA "Sao xấu mới", không thể nhiều hơn — nếu
+  // không chặn thì ô tự tính "Không có SĐT" bị âm và tổng quan sai theo.
+  return obj.refine(
+    (v) => (v.newBadWithPhone ?? 0) <= (v.newBad ?? 0),
+    {
+      path: ["newBadWithPhone"],
+      message: "Số case có SĐT không được lớn hơn Sao xấu mới",
+    },
+  );
 }
 
 const dateSchema = z
@@ -61,6 +72,7 @@ function textsSchema(tab: ConfigTab) {
 
 function reportInputSchema(tab: ConfigTab) {
   return z.object({
+    id: z.string().uuid().optional(),
     employeeCode: z.string().min(1, "Thiếu nhân viên"),
     date: dateSchema,
     values: valuesSchema(tab),
@@ -80,6 +92,14 @@ async function listInternal(tab: ConfigTab): Promise<ReportRow[]> {
 /**
  * Tạo/cập nhật 1 báo cáo (upsert theo (employee_id, report_date)).
  * 1 NV chỉ 1 báo cáo / ngày / tab — nhập lại cùng ngày sẽ ghi đè.
+ *
+ * `input.id` = dòng đang sửa. BẮT BUỘC gửi lên khi sửa, vì khóa upsert là
+ * (employee_id, report_date): đổi nhân viên hoặc đổi ngày mà không có id thì
+ * upsert sẽ đẻ ra dòng MỚI và dòng cũ nằm lại → nhân đôi báo cáo.
+ *
+ * 🔴 Đã xảy ra thật 2026-08-19: khách sửa báo cáo Sao Xấu 19/08 từ Phương sang
+ * Hương, kết quả DB có cả 2 dòng. Càng khó phát hiện vì client tự gỡ dòng cũ
+ * khỏi state nên nhìn màn hình tưởng đã chuyển xong, tải lại trang mới lòi ra.
  */
 export async function saveReport(
   tab: ConfigTab,
@@ -105,14 +125,41 @@ export async function saveReport(
     parsed.texts as Record<string, string> | undefined,
   );
 
-  const [saved] = await db
-    .insert(table)
-    .values(record)
-    .onConflictDoUpdate({
-      target: [table.employeeId, table.reportDate],
-      set: buildUpdateSet(record),
-    })
-    .returning();
+  const upsert = (exec: typeof db) =>
+    exec
+      .insert(table)
+      .values(record)
+      .onConflictDoUpdate({
+        target: [table.employeeId, table.reportDate],
+        set: buildUpdateSet(record),
+      })
+      .returning();
+
+  // Đang sửa và khóa (nhân viên, ngày) bị đổi → DỜI dòng: xóa dòng cũ rồi ghi
+  // dòng mới trong cùng 1 transaction, để không có lúc nào tồn tại cả hai.
+  let moveFromId: string | null = null;
+  if (parsed.id) {
+    const [old] = await db
+      .select({ id: table.id, employeeId: table.employeeId, date: table.reportDate })
+      .from(table)
+      .where(eq(table.id, parsed.id))
+      .limit(1);
+    if (
+      old &&
+      (old.employeeId !== employeeUuid || (old.date as string) !== parsed.date)
+    ) {
+      // Xóa dòng của người khác cũng là hành vi ghi → phải có quyền trên CẢ hai.
+      await assertCanEditFor(tab, old.employeeId as string);
+      moveFromId = old.id as string;
+    }
+  }
+
+  const [saved] = moveFromId
+    ? await db.transaction(async (tx) => {
+        await tx.delete(table).where(eq(table.id, moveFromId));
+        return upsert(tx as unknown as typeof db);
+      })
+    : await upsert(db);
 
   revalidatePath(TAB_PATH[tab]);
   return toReportRow(tab, saved as Record<string, unknown>, idToCode);

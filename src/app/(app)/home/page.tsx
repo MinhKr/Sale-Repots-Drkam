@@ -1,4 +1,11 @@
-import { CalendarRange, Coins, TrendingUp } from "lucide-react";
+import {
+  CalendarRange,
+  Coins,
+  Headset,
+  Radio,
+  ShoppingBag,
+  TrendingUp,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,6 +46,7 @@ export default async function HomePage({
   } = await getTeamDashboard(monthParam);
   const badReview = await getBadReviewSummary(month ?? monthParam);
   const { homQua, tuanNay, thangNay, mucTieuThang } = summary;
+  const { saleNgay, cskhNgay, livestreamNgay } = summary;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -62,6 +70,33 @@ export default async function HomePage({
         period={monthLabel}
         depts={deptProgress}
       />
+
+      {/* Doanh thu ngày — mỗi bộ phận một ô, KHÔNG gộp.
+          Sale/CSKH lấy ngày báo cáo mới nhất; Livestream lùi 1 ngày vì báo cáo
+          nhập lúc 17h mà tối vẫn còn live nên số trong ngày luôn thiếu. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile
+          label="Doanh thu Sale"
+          value={formatCompactVnd(saleNgay.value)}
+          delta={formatDelta(saleNgay.deltaVsTruoc)}
+          sub={`ngày ${saleNgay.label} · so ngày trước`}
+          icon={ShoppingBag}
+        />
+        <StatTile
+          label="Doanh thu CSKH"
+          value={formatCompactVnd(cskhNgay.value)}
+          delta={formatDelta(cskhNgay.deltaVsTruoc)}
+          sub={`ngày ${cskhNgay.label} · so ngày trước`}
+          icon={Headset}
+        />
+        <StatTile
+          label="Doanh thu Livestream"
+          value={formatCompactVnd(livestreamNgay.value)}
+          delta={formatDelta(livestreamNgay.deltaVsTruoc)}
+          sub={`ngày ${livestreamNgay.label} · chốt sau khi live tối xong`}
+          icon={Radio}
+        />
+      </div>
 
       {/* 3 KPI doanh thu */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
