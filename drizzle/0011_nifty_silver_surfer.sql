@@ -1,0 +1,2 @@
+ALTER TABLE "reports_bad_review" ADD COLUMN "product_efficacy" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reports_bad_review" ADD COLUMN "product_defect" integer DEFAULT 0 NOT NULL;

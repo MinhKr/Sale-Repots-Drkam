@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { statusFromProgress } from "@/lib/mock/dashboard";
 import { DEPT_LABEL } from "@/lib/mock/employees";
@@ -72,6 +72,8 @@ interface Base {
   anchor: string | null;
   /** date → tổng doanh thu toàn team ngày đó */
   dailyTotal: Map<string, number>;
+  /** "SALE" | "CSKH" | "LIVE" → (date → doanh thu ngày đó của bộ phận) */
+  dailyByDept: Map<string, Map<string, number>>;
   /** empId(uuid) → (date → doanh thu) */
   empDaily: Map<string, Map<string, number>>;
   employees: EmpRow[];
@@ -84,7 +86,13 @@ interface Base {
   month: string | null;
 }
 
-/** UNION ALL 3 bảng doanh thu về (employeeId, date, rev) — 1 round-trip. */
+/**
+ * UNION ALL 3 bảng doanh thu về (employeeId, date, rev, src) — 1 round-trip.
+ *
+ * `src` để tách doanh thu ngày theo từng bộ phận. Trang chủ hiện 3 ô riêng —
+ * Sale, CSKH, Livestream — trong đó Livestream lấy số LÙI 1 NGÀY vì báo cáo
+ * nhập lúc 17h mà tối vẫn còn live.
+ */
 async function loadRevenueRows() {
   const s = schema;
   const q1 = db
@@ -92,6 +100,7 @@ async function loadRevenueRows() {
       employeeId: s.reportsSale.employeeId,
       date: s.reportsSale.reportDate,
       rev: s.reportsSale.tongDoanhThu,
+      src: sql<string>`'SALE'`.as("src"),
     })
     .from(s.reportsSale);
   const q2 = db
@@ -99,6 +108,7 @@ async function loadRevenueRows() {
       employeeId: s.reportsCskh.employeeId,
       date: s.reportsCskh.reportDate,
       rev: s.reportsCskh.tongDoanhThu,
+      src: sql<string>`'CSKH'`.as("src"),
     })
     .from(s.reportsCskh);
   const q3 = db
@@ -106,6 +116,7 @@ async function loadRevenueRows() {
       employeeId: s.reportsLivestream.employeeId,
       date: s.reportsLivestream.reportDate,
       rev: s.reportsLivestream.revenue,
+      src: sql<string>`'LIVE'`.as("src"),
     })
     .from(s.reportsLivestream);
   return q1.unionAll(q2).unionAll(q3);
@@ -132,6 +143,7 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
   ]);
 
   const dailyTotal = new Map<string, number>();
+  const dailyByDept = new Map<string, Map<string, number>>();
   const empDaily = new Map<string, Map<string, number>>();
   const monthsSet = new Set<string>();
 
@@ -140,6 +152,12 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
     const date = r.date as string;
     monthsSet.add(monthKey(date));
     dailyTotal.set(date, (dailyTotal.get(date) ?? 0) + rev);
+    let bySrc = dailyByDept.get(r.src);
+    if (!bySrc) {
+      bySrc = new Map();
+      dailyByDept.set(r.src, bySrc);
+    }
+    bySrc.set(date, (bySrc.get(date) ?? 0) + rev);
     let m = empDaily.get(r.employeeId);
     if (!m) {
       m = new Map();
@@ -194,6 +212,7 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
   return {
     anchor,
     dailyTotal,
+    dailyByDept,
     empDaily,
     employees: empList,
     targetById,
@@ -240,12 +259,36 @@ export interface DeptProgress {
   activeCount: number;
 }
 
+/**
+ * Doanh thu của MỘT ngày cụ thể, kèm ngày để hiển thị — không dùng chữ
+ * "hôm nay/hôm qua" cứng vì mốc phụ thuộc ngày báo cáo mới nhất có trong DB.
+ */
+export interface DayRevenue {
+  value: number;
+  deltaVsTruoc: number;
+  /** ngày của số liệu (yyyy-mm-dd) */
+  date: string;
+  /** nhãn ngắn để hiện trên thẻ, vd "19/08" */
+  label: string;
+}
+
 export interface TeamDashboard {
   summary: {
     homQua: { value: number; deltaVsTruoc: number };
     tuanNay: { value: number; deltaVsTruoc: number };
     thangNay: { value: number; deltaVsTruoc: number };
     mucTieuThang: number;
+    /** Doanh thu ngày của Sale — theo ngày báo cáo mới nhất. */
+    saleNgay: DayRevenue;
+    /** Doanh thu ngày của CSKH — cùng mốc ngày với Sale. */
+    cskhNgay: DayRevenue;
+    /**
+     * Doanh thu ngày của Livestream — LÙI LẠI 1 NGÀY so với Sale/CSKH.
+     * Lý do (PM chốt 2026-08-20): báo cáo nhập lúc 17h nhưng livestream còn
+     * chạy cả buổi tối, nên số của chính ngày đó luôn thiếu; phải sang hôm sau
+     * chốt lại mới đúng.
+     */
+    livestreamNgay: DayRevenue;
   };
   revenue14d: RevenuePoint[];
   ranking: RankRow[];
@@ -273,6 +316,9 @@ export async function getTeamDashboard(
         tuanNay: { value: 0, deltaVsTruoc: 0 },
         thangNay: { value: 0, deltaVsTruoc: 0 },
         mucTieuThang: 0,
+        saleNgay: { value: 0, deltaVsTruoc: 0, date: "", label: "" },
+        cskhNgay: { value: 0, deltaVsTruoc: 0, date: "", label: "" },
+        livestreamNgay: { value: 0, deltaVsTruoc: 0, date: "", label: "" },
       },
       revenue14d: [],
       ranking: [],
@@ -310,6 +356,22 @@ export async function getTeamDashboard(
   ).padStart(2, "0")}`;
   const thangTruoc = sumRange(dailyTotal, prevMStart, prevMEnd);
 
+  // 3 ô doanh thu ngày, mỗi bộ phận một ô (xem chú thích ở kiểu TeamDashboard).
+  // Sale/CSKH lấy mốc anchor; Livestream lùi 1 ngày.
+  const { dailyByDept } = base;
+  const dayRev = (src: string, on: string): DayRevenue => {
+    const m = dailyByDept.get(src);
+    const value = m?.get(on) ?? 0;
+    const truoc = m?.get(addDays(on, -1)) ?? 0;
+    return {
+      value,
+      deltaVsTruoc: ratio(value - truoc, truoc),
+      date: on,
+      label: ddmm(on),
+    };
+  };
+  const liveDate = addDays(anchor, -1);
+
   // Biểu đồ 14 ngày kết thúc ở anchor
   const dailyTarget = Math.round(ratio(mucTieuThang, daysInMonth(anchor)));
   const revenue14d: RevenuePoint[] = [];
@@ -328,6 +390,9 @@ export async function getTeamDashboard(
       tuanNay: { value: tuanNay, deltaVsTruoc: ratio(tuanNay - tuanTruoc, tuanTruoc) },
       thangNay: { value: thangNay, deltaVsTruoc: ratio(thangNay - thangTruoc, thangTruoc) },
       mucTieuThang,
+      saleNgay: dayRev("SALE", anchor),
+      cskhNgay: dayRev("CSKH", anchor),
+      livestreamNgay: dayRev("LIVE", liveDate),
     },
     revenue14d,
     ranking: buildRanking(base),
@@ -465,16 +530,35 @@ export interface BadReviewSummary {
   /** phát sinh trong tháng đang xem */
   newBad: number;
   resolved: number;
+  /**
+   * Tách "Sao xấu mới" theo việc có lấy được SĐT khách trên sàn hay không.
+   *
+   * `unclassified` là phần nhập TRƯỚC ngày có ô này (cột DB đang NULL) — cố ý
+   * không dồn vào `noPhone`, vì không ai biết thực tế 59 case của T7 ra sao.
+   * withPhone + noPhone + unclassified === newBad.
+   */
+  withPhone: number;
+  noPhone: number;
+  unclassified: number;
   /** đã xử lý / sao xấu mới trong tháng */
   tiLeXuLy: number;
   /** sao khách đã sửa lại thành 5★ trong tháng */
   fixed5: number;
   /** case đang chờ khách sửa (số của ngày mới nhất có dữ liệu) */
   pending: number;
-  /** không liên hệ được khách — cộng dồn trong tháng */
+  /**
+   * @deprecated Ô "Không LH được KH" đã gỡ khỏi form 2026-08-20, thay bằng
+   * productEfficacy + productDefect. Vẫn tổng hợp để còn đọc được dữ liệu cũ
+   * (T8/2026 có 29 case), nhưng KHÔNG còn hiển thị trên Trang chủ và sẽ đứng
+   * yên vì không ai nhập nữa.
+   */
   noContact: number;
   /** case liên quan kho — cộng dồn trong tháng */
   warehouseIssue: number;
+  /** khách chê sản phẩm không hiệu quả — cộng dồn trong tháng */
+  productEfficacy: number;
+  /** sản phẩm lỗi — cộng dồn trong tháng */
+  productDefect: number;
   /** phát sinh theo sàn trong tháng */
   shopee: number;
   tiktok: number;
@@ -502,11 +586,16 @@ const EMPTY_BAD_REVIEW: BadReviewSummary = {
   goal: SAO_XAU_GOAL_TI_LE_XU_LY,
   newBad: 0,
   resolved: 0,
+  withPhone: 0,
+  noPhone: 0,
+  unclassified: 0,
   tiLeXuLy: 0,
   fixed5: 0,
   pending: 0,
   noContact: 0,
   warehouseIssue: 0,
+  productEfficacy: 0,
+  productDefect: 0,
   shopee: 0,
   tiktok: 0,
   star1: 0,
@@ -544,6 +633,7 @@ export async function getBadReviewSummary(
         date: t.reportDate,
         newBad: t.newBad,
         resolved: t.resolved,
+        newBadWithPhone: t.newBadWithPhone,
         star1: t.star1,
         star2: t.star2,
         star3: t.star3,
@@ -553,6 +643,8 @@ export async function getBadReviewSummary(
         pendingTotal: t.pendingTotal,
         noContact: t.noContact,
         warehouseIssue: t.warehouseIssue,
+        productEfficacy: t.productEfficacy,
+        productDefect: t.productDefect,
         code: schema.employees.code,
         name: schema.employees.name,
         shortName: schema.employees.shortName,
@@ -588,9 +680,14 @@ export async function getBadReviewSummary(
   const acc = {
     newBad: 0,
     resolved: 0,
+    withPhone: 0,
+    noPhone: 0,
+    unclassified: 0,
     fixed5: 0,
     noContact: 0,
     warehouseIssue: 0,
+    productEfficacy: 0,
+    productDefect: 0,
     shopee: 0,
     tiktok: 0,
     star1: 0,
@@ -623,9 +720,19 @@ export async function getBadReviewSummary(
 
     acc.newBad += n;
     acc.resolved += s;
+    // NULL = dòng cũ chưa phân loại → dồn hết vào `unclassified`, không đoán.
+    if (r.newBadWithPhone == null) {
+      acc.unclassified += n;
+    } else {
+      const wp = Math.min(r.newBadWithPhone, n); // chặn dữ liệu lỗi làm âm
+      acc.withPhone += wp;
+      acc.noPhone += n - wp;
+    }
     acc.fixed5 += r.fixed5Total ?? 0;
     acc.noContact += r.noContact ?? 0;
     acc.warehouseIssue += r.warehouseIssue ?? 0;
+    acc.productEfficacy += r.productEfficacy ?? 0;
+    acc.productDefect += r.productDefect ?? 0;
     acc.shopee += r.shopee ?? 0;
     acc.tiktok += r.tiktok ?? 0;
     acc.star1 += r.star1 ?? 0;

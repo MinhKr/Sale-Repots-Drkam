@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ReportFilter, useReportFilter } from "./date-range-filter";
+import { computeBacklog, type OpeningRow } from "@/lib/reports/backlog";
 import {
   Dialog,
   DialogContent,
@@ -46,19 +47,47 @@ import { PageHeader } from "@/components/page-header";
 import { deleteReport, saveReport } from "@/lib/reports/actions";
 import type { TabPermission } from "@/lib/reports/guard";
 
-/** Khối cảnh báo tồn lũy kế theo ngưỡng (Sao Xấu) */
+/**
+ * Khối cảnh báo tồn sao xấu theo ngưỡng.
+ *
+ * ⚠️ Phân biệt 2 chế độ — trước đây gộp làm một nên nhãn ghi "lũy kế" mà số lại
+ * chỉ tính trong bộ lọc, khiến tab hiện 32 (riêng T8) còn Trang chủ hiện 61
+ * (có cộng 29 tồn từ T7), cùng một chỉ số mà hai con số.
+ *
+ *  · Đang lọc kỳ  → chỉ tính net của chính kỳ đó, KHÔNG cộng tồn mang sang.
+ *    Nhãn nói rõ tên kỳ. Đây là cái tab báo cáo cần: xem tháng 8 thì ra số của
+ *    tháng 8. Muốn xem lũy kế toàn cục thì sang Trang chủ.
+ *  · Xem tất cả   → mới là lũy kế thật: mốc đầu kỳ + toàn bộ dòng.
+ */
 function BacklogAlert({
   backlog,
   rows,
-  opening,
+  openings,
+  active,
+  periodLabel,
 }: {
   backlog: BacklogConfig;
+  /** dòng ĐANG LỌC (khi "xem tất cả" thì bằng toàn bộ dòng) */
   rows: ReportRow[];
-  /** tồn mang sang từ kỳ trước — không suy ra được từ các dòng trong app */
-  opening: number;
+  openings: OpeningRow[];
+  /** có đang lọc theo kỳ không */
+  active: boolean;
+  periodLabel: string | null;
 }) {
-  const total =
-    opening + rows.reduce((sum, r) => sum + backlog.net(r.values), 0);
+  const netSum = rows.reduce((sum, r) => sum + backlog.net(r.values), 0);
+  // Chỉ chế độ "xem tất cả" mới cộng mốc đầu kỳ — cộng vào số của riêng một
+  // tháng thì con số không còn nghĩa gì.
+  const cumulative = computeBacklog(
+    rows.map((r) => ({ date: r.date, net: backlog.net(r.values) })),
+    openings,
+    null,
+    null,
+  );
+  const total = active ? netSum : cumulative.total;
+  const label = active
+    ? `${backlog.periodLabel ?? "Tồn"} · ${periodLabel}`
+    : backlog.label;
+
   const level =
     total >= backlog.threshold
       ? "danger"
@@ -84,17 +113,25 @@ function BacklogAlert({
     <div className={cn("flex items-center gap-4 rounded-lg border p-4", styles)}>
       <Icon className="size-8 shrink-0" />
       <div className="flex-1">
-        <p className="text-sm font-medium opacity-90">{backlog.label}</p>
+        <p className="text-sm font-medium opacity-90">{label}</p>
         <p className="font-heading text-2xl font-bold tabular-nums">
           {formatNumber(total)}{" "}
           <span className="text-base font-normal opacity-70">
             / {backlog.threshold} {backlog.unit}
           </span>
         </p>
-        {opening > 0 && (
+        {active ? (
+          // Nói thẳng ra con số này KHÔNG gồm tồn kỳ trước, tránh lặp lại đúng
+          // hiểu nhầm cũ.
           <p className="text-xs opacity-80">
-            gồm {formatNumber(opening)} mang sang từ kỳ trước
+            chỉ tính trong kỳ đang lọc — tồn lũy kế toàn bộ xem ở Trang chủ
           </p>
+        ) : (
+          cumulative.carriedOver > 0 && (
+            <p className="text-xs opacity-80">
+              gồm {formatNumber(cumulative.carriedOver)} mang sang từ kỳ trước
+            </p>
+          )
         )}
       </div>
       <p className="hidden max-w-[220px] text-right text-sm font-medium sm:block">
@@ -107,8 +144,8 @@ function BacklogAlert({
 interface ReportTabProps {
   tab: ConfigTab;
   initialRows: ReportRow[];
-  /** tồn đầu kỳ mang sang (chỉ tab có backlog dùng tới) */
-  opening?: number;
+  /** các mốc tồn đầu kỳ (chỉ tab có backlog dùng tới) */
+  openings?: OpeningRow[];
   /** Quyền nhập của người đang đăng nhập (tính ở server) */
   perm: TabPermission;
 }
@@ -116,7 +153,7 @@ interface ReportTabProps {
 export function ReportTab({
   tab,
   initialRows,
-  opening = 0,
+  openings = [],
   perm,
 }: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
@@ -131,7 +168,7 @@ export function ReportTab({
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const filter = useReportFilter(rows.map((r) => r.date));
-  const { active, inRange } = filter;
+  const { active, inRange, periodLabel } = filter;
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -168,6 +205,9 @@ export function ReportTab({
     setSaving(true);
     try {
       const saved = await saveReport(tab, {
+        // Gửi id dòng đang sửa để server DỜI dòng khi đổi nhân viên/ngày,
+        // thay vì đẻ ra dòng mới và để dòng cũ nằm lại.
+        id: editing?.id,
         employeeCode: row.employeeId,
         date: row.date,
         values: row.values,
@@ -233,11 +273,6 @@ export function ReportTab({
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title={`Báo cáo ${config.title}`}
-        description={
-          active
-            ? `${sorted.length} / ${rows.length} báo cáo (đang lọc)`
-            : `${rows.length} báo cáo`
-        }
         action={
           canEditAny ? (
             <Button onClick={openNew}>
@@ -261,7 +296,9 @@ export function ReportTab({
         <BacklogAlert
           backlog={config.backlog}
           rows={sorted}
-          opening={opening}
+          openings={openings}
+          active={active}
+          periodLabel={periodLabel}
         />
       )}
 

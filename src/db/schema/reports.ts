@@ -124,6 +124,16 @@ export const reportsBadReview = pgTable(
     // Phát sinh
     newBad: integer("new_bad").notNull().default(0),
     resolved: integer("resolved").notNull().default(0),
+    /**
+     * Trong số `newBad`, bao nhiêu case lấy được SĐT khách trên sàn.
+     * Phần còn lại (`newBad - newBadWithPhone`) ngầm hiểu là không có SĐT.
+     *
+     * ⚠️ CỐ TÌNH để nullable, KHÔNG default 0: NULL = dòng nhập trước ngày có
+     * ô này (chưa phân loại), khác hẳn 0 = đã nhập và thật sự không case nào
+     * có SĐT. Nếu default 0 thì 59 case của T7 sẽ bị khai khống thành "không
+     * có SĐT" trong khi không ai biết thực tế ra sao.
+     */
+    newBadWithPhone: integer("new_bad_with_phone"),
     // Phân loại sao xấu
     star1: integer("star_1").notNull().default(0),
     star2: integer("star_2").notNull().default(0),
@@ -139,6 +149,13 @@ export const reportsBadReview = pgTable(
     pendingTiktok: integer("pending_tiktok").notNull().default(0),
     // Phân loại vấn đề
     warehouseIssue: integer("warehouse_issue").notNull().default(0),
+    /** Khách chê sản phẩm không hiệu quả */
+    productEfficacy: integer("product_efficacy").notNull().default(0),
+    /** Sản phẩm lỗi (vỡ, hỏng, sai hàng…) */
+    productDefect: integer("product_defect").notNull().default(0),
+    /** @deprecated Bỏ khỏi form 2026-08-20 theo yêu cầu khách, thay bằng
+     *  productEfficacy + productDefect. GIỮ cột để không mất dữ liệu lịch sử
+     *  (T8/2026 đã có 29 case); không còn được ghi ở bản mới. */
     noContact: integer("no_contact").notNull().default(0),
 
     // --- Ô tự tính (lưu sẵn) ---
@@ -146,6 +163,8 @@ export const reportsBadReview = pgTable(
     tiLeXuLy: percent("ti_le_xu_ly").notNull().default(0),
     fixed5Total: integer("fixed_5_total").notNull().default(0),
     pendingTotal: integer("pending_total").notNull().default(0),
+    /** = newBad − newBadWithPhone. Nullable cùng lý do với newBadWithPhone. */
+    newBadNoPhone: integer("new_bad_no_phone"),
 
     // --- Ô nhập chữ ---
     reviewLink: text("review_link"),

@@ -31,6 +31,8 @@ export function reportTable(tab: ConfigTab) {
 
 /** Dữ liệu 1 báo cáo do client gửi lên (trước khi validate). */
 export interface ReportInput {
+  /** id dòng đang SỬA (bỏ trống = tạo mới) — cần để dời dòng khi đổi NV/ngày */
+  id?: string;
   /** slug nhân viên (= employees.code), vd "sale-phuong" */
   employeeCode: string;
   /** ISO yyyy-mm-dd */
