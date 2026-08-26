@@ -264,7 +264,8 @@ export async function setDepts(input: unknown): Promise<void> {
     .update(schema.employees)
     .set({
       depts,
-      dept: primaryDept(depts, depts[0]),
+      // Giữ nguyên tổ gốc nếu vẫn còn tick — tick thêm tổ không làm nhảy KPI.
+      dept: primaryDept(depts, emp.dept as (typeof depts)[number]),
       role: depts.includes("LEAD") ? "LEAD" : "STAFF",
       ...(leavingLive ? { region: null, employment: null } : {}),
     })
