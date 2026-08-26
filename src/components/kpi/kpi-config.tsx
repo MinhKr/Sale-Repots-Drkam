@@ -29,7 +29,8 @@ import { saveBadReviewOpening, saveKpiConfig } from "@/lib/kpi/actions";
 import { SAO_XAU_CONFIG } from "@/lib/mock/reports";
 import { MoneyInput } from "@/components/money-input";
 import { PageHeader } from "@/components/page-header";
-import { DEPT_LABEL, employeesByDept } from "@/lib/mock/employees";
+import { DEPT_LABEL } from "@/lib/mock/employees";
+import type { RosterEmployee } from "@/lib/employees/roster";
 import { formatCompactVnd, formatCurrency } from "@/lib/format";
 
 const monthKey = (y: number, m: number) => `${y}-${m}`;
@@ -40,10 +41,13 @@ const emptyKpi = (): MonthKpi => ({ targets: {}, warning: KPI_DEFAULT_WARNING })
 export function KpiConfig({
   configs,
   openings,
+  roster,
 }: {
   configs: Record<string, MonthKpi>;
   /** tồn sao xấu đầu kỳ theo "yyyy-mm" */
   openings: Record<string, number>;
+  /** Danh bạ nhân viên (DB) — bộ phận sửa được nên không xếp theo danh sách cứng */
+  roster: RosterEmployee[];
 }) {
   const [month, setMonth] = useState(7);
   const [year, setYear] = useState(2026);
@@ -238,7 +242,9 @@ export function KpiConfig({
 
       {/* Mục tiêu theo bộ phận */}
       {KPI_DEPTS.map((dept) => {
-        const staff = employeesByDept(dept);
+        // Gom theo bộ phận CHÍNH: mỗi nhân viên chỉ có MỘT mục tiêu doanh thu
+        // nên phải nằm đúng 1 thẻ, không thì sửa ở thẻ này lại đổi cả thẻ kia.
+        const staff = roster.filter((e) => e.dept === dept && e.active);
         const deptTotal = staff.reduce((s, e) => s + (targets[e.id] ?? 0), 0);
         return (
           <Card key={dept}>

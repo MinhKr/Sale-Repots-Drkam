@@ -21,8 +21,14 @@ export const EMPLOYMENT_LABEL: Record<Employment, string> = {
   PT: "Parttime",
 };
 
-/** Nhãn gộp Miền · FT/PT (vd "Miền Bắc · Parttime"), rỗng nếu thiếu thông tin */
-export function regionEmploymentLabel(e: Employee): string {
+/**
+ * Nhãn gộp Miền · FT/PT (vd "Miền Bắc · Parttime"), rỗng nếu thiếu thông tin.
+ * Nhận cả bản ghi đọc từ DB (region/employment là `null` chứ không phải undefined).
+ */
+export function regionEmploymentLabel(e: {
+  region?: Region | null;
+  employment?: Employment | null;
+}): string {
   if (!e.region && !e.employment) return "";
   const parts: string[] = [];
   if (e.region) parts.push(REGION_LABEL[e.region]);

@@ -8,6 +8,8 @@ import {
   type Actor,
   type EmployeeLike,
 } from "@/lib/permissions";
+import { deptsOf } from "@/lib/employees/depts";
+import { toRoster, type RosterEmployee } from "@/lib/employees/roster";
 import type { ConfigTab } from "@/lib/mock/reports";
 import type { DeptCode, Employment, Region } from "@/lib/mock/types";
 
@@ -22,7 +24,11 @@ import type { DeptCode, Employment, Region } from "@/lib/mock/types";
 interface PermEmployee extends EmployeeLike {
   id: string;
   code: string | null;
+  name: string;
+  shortName: string;
+  initials: string;
   dept: DeptCode;
+  depts: DeptCode[];
   region: Region | null;
   employment: Employment | null;
   active: boolean;
@@ -33,7 +39,11 @@ async function loadPermEmployees(): Promise<PermEmployee[]> {
     .select({
       id: schema.employees.id,
       code: schema.employees.code,
+      name: schema.employees.name,
+      shortName: schema.employees.shortName,
+      initials: schema.employees.initials,
       dept: schema.employees.dept,
+      depts: schema.employees.depts,
       region: schema.employees.region,
       employment: schema.employees.employment,
       active: schema.employees.active,
@@ -43,12 +53,20 @@ async function loadPermEmployees(): Promise<PermEmployee[]> {
   return rows.map((r) => ({
     id: r.id,
     code: r.code,
+    name: r.name,
+    shortName: r.shortName,
+    initials: r.initials,
     dept: r.dept as DeptCode,
+    depts: deptsOf({
+      dept: r.dept as DeptCode,
+      depts: r.depts as DeptCode[] | null,
+    }),
     region: r.region as Region | null,
     employment: r.employment as Employment | null,
     active: r.active,
   }));
 }
+
 
 export interface EditScope {
   actor: Actor;
@@ -68,6 +86,8 @@ export async function loadEditScope(tab: ConfigTab): Promise<EditScope> {
   return { actor, editableIds: new Set(allowed.map((e) => e.id)) };
 }
 
+export type { RosterEmployee };
+
 export interface TabPermission {
   /** `code` (slug) các nhân viên được nhập hộ — dùng ở client để lọc UI */
   editableCodes: string[];
@@ -83,6 +103,8 @@ export interface TabAccess {
   /** uuid các nhân viên được XEM — dùng để lọc truy vấn ở server */
   visibleIds: string[];
   perm: TabPermission;
+  /** Danh bạ nhân viên (theo DB) để client hiện tên + lọc ô chọn theo bộ phận */
+  roster: RosterEmployee[];
 }
 
 /**
@@ -106,6 +128,7 @@ export async function loadTabAccess(tab: ConfigTab): Promise<TabAccess> {
   return {
     canView,
     visibleIds: visible.map((e) => e.id),
+    roster: toRoster(employees),
     perm: {
       editableCodes: editable
         .map((e) => e.code)

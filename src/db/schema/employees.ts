@@ -21,7 +21,19 @@ export const employees = pgTable("employees", {
   email: text("email").unique(),
   /** Tên gọi ngắn, phân biệt được — hiển thị ở bảng/dashboard */
   shortName: text("short_name").notNull(),
+  /**
+   * Bộ phận CHÍNH — dùng để hiển thị & gom nhóm (KPI, tiến độ theo tổ trên
+   * Trang chủ) sao cho mỗi người chỉ được đếm một lần. Luôn là phần tử đầu
+   * của `depts` theo thứ tự DEPT_ORDER (xem lib/employees/depts.ts).
+   */
   dept: deptEnum("dept").notNull(),
+  /**
+   * TẤT CẢ bộ phận nhân viên tham gia (2026-08-26: một người kiêm nhiều tổ).
+   * Đây là nguồn sự thật cho phân quyền và cho việc "ai hiện ở tab báo cáo
+   * nào"; `dept` chỉ là cái rút ra từ đây để hiển thị.
+   * Luôn có ít nhất 1 phần tử và luôn chứa `dept`.
+   */
+  depts: deptEnum("depts").array().notNull().default([]),
   role: roleEnum("role").notNull().default("STAFF"),
   /** Chữ cái viết tắt cho Avatar fallback */
   initials: text("initials").notNull(),

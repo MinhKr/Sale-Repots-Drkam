@@ -1,6 +1,7 @@
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireManager } from "@/lib/auth";
+import { deptsOf } from "@/lib/employees/depts";
 import type { DeptCode, Employment, Region, Role } from "@/lib/mock/types";
 
 export interface EmployeeAccountRow {
@@ -9,7 +10,10 @@ export interface EmployeeAccountRow {
   name: string;
   shortName: string;
   initials: string;
+  /** Bộ phận chính — bộ phận đứng đầu trong `depts` */
   dept: DeptCode;
+  /** Toàn bộ bộ phận kiêm nhiệm (một người tick được nhiều tổ) */
+  depts: DeptCode[];
   role: Role;
   active: boolean;
   /** Miền + loại hợp đồng — chỉ Livestream dùng, quyết định quyền nhập */
@@ -36,6 +40,7 @@ export async function listEmployeeAccounts(): Promise<EmployeeAccountRow[]> {
       shortName: schema.employees.shortName,
       initials: schema.employees.initials,
       dept: schema.employees.dept,
+      depts: schema.employees.depts,
       role: schema.employees.role,
       region: schema.employees.region,
       employment: schema.employees.employment,
@@ -53,6 +58,10 @@ export async function listEmployeeAccounts(): Promise<EmployeeAccountRow[]> {
     shortName: r.shortName,
     initials: r.initials,
     dept: r.dept as DeptCode,
+    depts: deptsOf({
+      dept: r.dept as DeptCode,
+      depts: r.depts as DeptCode[] | null,
+    }),
     role: r.role as Role,
     region: r.region as Region | null,
     employment: r.employment as Employment | null,

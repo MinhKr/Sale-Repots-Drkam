@@ -13,5 +13,12 @@ export default async function SaleReportPage() {
   if (!access.canView) notFound();
 
   const rows = await listReports("SALE", access.visibleIds);
-  return <ReportTab tab="SALE" initialRows={rows} perm={access.perm} />;
+  return (
+    <ReportTab
+      tab="SALE"
+      initialRows={rows}
+      roster={access.roster}
+      perm={access.perm}
+    />
+  );
 }

@@ -61,9 +61,13 @@ function SelectContent({
   children,
   side = "bottom",
   sideOffset = 4,
-  align = "center",
+  align = "start",
   alignOffset = 0,
-  alignItemWithTrigger = true,
+  // Mở XUỐNG DƯỚI ô chọn như dropdown thường.
+  // Mặc định của Base UI (true) dịch popup sao cho mục ĐANG CHỌN đè lên
+  // trigger: trong bảng thì ai chọn mục cuối danh sách sẽ thấy popup nhảy lên
+  // che mất các dòng trên, và ô chọn-nhiều-mục thì không biết căn theo mục nào.
+  alignItemWithTrigger = false,
   ...props
 }: SelectPrimitive.Popup.Props &
   Pick<

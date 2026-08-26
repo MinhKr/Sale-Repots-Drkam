@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import {
   ClipboardPaste,
   Eye,
@@ -36,11 +36,7 @@ import {
   CONFIG_BY_TAB,
   type ReportRow,
 } from "@/lib/mock/reports";
-import {
-  employeesByDept,
-  getEmployee,
-  regionEmploymentLabel,
-} from "@/lib/mock/employees";
+import { regionEmploymentLabel } from "@/lib/mock/employees";
 import {
   formatCurrency,
   formatDateVn,
@@ -55,15 +51,15 @@ import {
   saveLivestreamDay,
   saveReport,
 } from "@/lib/reports/actions";
+import type { RosterEmployee } from "@/lib/employees/roster";
 import type { TabPermission } from "@/lib/reports/guard";
 
 const config = CONFIG_BY_TAB.LIVESTREAM;
-const STAFF = employeesByDept("LIVESTREAM");
 const FIELDS = config.inputs;
 
 type ValMap = Record<string, Record<string, number>>;
 
-function zeros(staff: typeof STAFF): ValMap {
+function zeros(staff: RosterEmployee[]): ValMap {
   return Object.fromEntries(
     staff.map((s) => [s.id, Object.fromEntries(FIELDS.map((f) => [f.key, 0]))]),
   );
@@ -71,14 +67,22 @@ function zeros(staff: typeof STAFF): ValMap {
 
 export function LivestreamTab({
   initialRows,
+  roster,
   perm,
 }: {
   initialRows: ReportRow[];
+  /** Danh bạ nhân viên (DB) — bộ phận sửa được nên không dùng danh sách cứng */
+  roster: RosterEmployee[];
   perm: TabPermission;
 }) {
   // Chỉ nhập được cho mình + parttime cùng miền (server tự chặn lại lần nữa).
   const editable = new Set(perm.editableCodes);
-  const staff = STAFF.filter((s) => editable.has(s.id));
+  const byCode = useMemo(() => new Map(roster.map((e) => [e.id, e])), [roster]);
+  // Danh sách dòng của dialog nhập bulk: người có tick Livestream mà mình được
+  // nhập hộ. Ai vừa bị bỏ tick Livestream sẽ tự rụng khỏi đây.
+  const staff = roster.filter(
+    (s) => s.depts.includes("LIVESTREAM") && editable.has(s.id),
+  );
   const canEditAny = staff.length > 0;
 
   const [rows, setRows] = useState<ReportRow[]>(initialRows);
@@ -293,7 +297,7 @@ export function LivestreamTab({
 
                     {/* Các dòng nhân viên trong ngày */}
                     {g.items.map((row) => {
-                      const emp = getEmployee(row.employeeId);
+                      const emp = byCode.get(row.employeeId);
                       const metrics = computeMetrics(config, row.values);
                       return (
                         <TableRow key={row.id}>
