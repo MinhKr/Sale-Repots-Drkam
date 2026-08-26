@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DEPT_LABEL } from "@/lib/mock/employees";
+import { deptsLabel, sortDepts } from "@/lib/employees/depts";
 import { localPartFromName, EMAIL_DOMAIN } from "@/lib/employees/email";
 import type { EmployeeAccountRow } from "@/lib/employees/queries";
 import type { DeptCode, Employment, Region } from "@/lib/mock/types";
@@ -57,14 +58,22 @@ import {
   createEmployee,
   deleteAccount,
   resetPassword,
+  setDepts,
   setEmployeeActive,
   setWorkInfo,
 } from "@/lib/employees/actions";
 import { MIN_PASSWORD_LENGTH } from "@/lib/employees/constants";
 
-/** Livestream part-time: fulltime cùng miền nhập hộ nên không cấp tài khoản. */
+/**
+ * Livestream part-time: fulltime cùng miền nhập hộ nên không cấp tài khoản.
+ * Người kiêm thêm tổ khác thì vẫn cần tài khoản để tự nhập tab của tổ đó.
+ */
 function isPartTimeLive(r: EmployeeAccountRow): boolean {
-  return r.dept === "LIVESTREAM" && r.employment === "PT";
+  return (
+    r.depts.length === 1 &&
+    r.depts[0] === "LIVESTREAM" &&
+    r.employment === "PT"
+  );
 }
 
 /** Thông tin tài khoản vừa cấp — hiện ở dialog để quản lý chép đưa nhân viên. */
@@ -177,8 +186,23 @@ export function EmployeeAdmin({
                     </div>
                   </TableCell>
 
+                  {/* Bộ phận quyết định nhân viên hiện ở tab báo cáo nào nên
+                      sửa được ngay tại chỗ, không phải xóa rồi tạo lại.
+                      Tick được nhiều tổ — một người kiêm Sale + CSKH sẽ hiện ở
+                      cả hai tab. */}
                   <TableCell>
-                    <Badge variant="outline">{DEPT_LABEL[r.dept]}</Badge>
+                    <DeptPicker
+                      value={r.depts}
+                      busy={busy}
+                      className="w-[168px]"
+                      onChange={(depts) =>
+                        run(
+                          r.id,
+                          () => setDepts({ employeeId: r.id, depts }),
+                          `${r.shortName}: ${deptsLabel(depts)}.`,
+                        )
+                      }
+                    />
                   </TableCell>
 
                   {/* Miền + FT/PT: chỉ Livestream mới có nghĩa, và chính 2 ô
@@ -337,6 +361,66 @@ export function EmployeeAdmin({
 
       <CredentialsDialog creds={creds} onClose={() => setCreds(null)} />
     </div>
+  );
+}
+
+/* ==================================================================== */
+/*  Ô chọn Bộ phận                                                       */
+/* ==================================================================== */
+
+/** So sánh 2 danh sách bộ phận đã sắp xếp — tránh gọi server khi không đổi gì. */
+function sameDepts(a: DeptCode[], b: DeptCode[]): boolean {
+  return a.length === b.length && a.every((d, i) => d === b[i]);
+}
+
+/**
+ * Ô tick NHIỀU bộ phận. Bỏ tick hết thì giữ nguyên lựa chọn cũ: mỗi nhân viên
+ * phải thuộc ít nhất 1 tổ, không thì họ biến mất khỏi mọi tab báo cáo.
+ */
+function DeptPicker({
+  value,
+  busy,
+  className,
+  id,
+  onChange,
+}: {
+  value: DeptCode[];
+  busy?: boolean;
+  className?: string;
+  id?: string;
+  onChange: (depts: DeptCode[]) => void;
+}) {
+  // Giữ nguyên tham chiếu mảng giữa các lần render — Base UI so sánh `value`
+  // theo identity, mảng mới mỗi render sẽ làm ô chọn nhấp nháy.
+  const current = useMemo(() => sortDepts(value), [value]);
+  return (
+    <Select
+      multiple
+      value={current}
+      onValueChange={(v) => {
+        const next = sortDepts(v as DeptCode[]);
+        if (!next.length) {
+          toast.error("Mỗi nhân viên phải thuộc ít nhất 1 bộ phận.");
+          return;
+        }
+        if (!sameDepts(next, current)) onChange(next);
+      }}
+      items={DEPT_ITEMS}
+      disabled={busy}
+    >
+      <SelectTrigger id={id} size="sm" className={className}>
+        <SelectValue placeholder="Bộ phận">
+          {() => (current.length ? deptsLabel(current) : "Bộ phận")}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {DEPT_OPTIONS.map((d) => (
+          <SelectItem key={d} value={d}>
+            {DEPT_LABEL[d]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -548,7 +632,7 @@ function AddEmployeeDialog({
   const router = useRouter();
   const [name, setName] = useState("");
   const [shortName, setShortName] = useState("");
-  const [dept, setDept] = useState<DeptCode>("SALE");
+  const [depts, setDeptsState] = useState<DeptCode[]>(["SALE"]);
   const [region, setRegion] = useState<Region | "">("");
   const [employment, setEmployment] = useState<Employment | "">("");
   const [email, setEmail] = useState("");
@@ -560,7 +644,7 @@ function AddEmployeeDialog({
   function reset() {
     setName("");
     setShortName("");
-    setDept("SALE");
+    setDeptsState(["SALE"]);
     setRegion("");
     setEmployment("");
     setEmail("");
@@ -573,9 +657,11 @@ function AddEmployeeDialog({
     if (!emailTouched) setEmail(suggestEmail(v, existingEmails));
   }
 
-  const isLive = dept === "LIVESTREAM";
-  // Livestream part-time không nhập báo cáo nên không cấp tài khoản.
-  const isLivePartTime = isLive && employment === "PT";
+  const isLive = depts.includes("LIVESTREAM");
+  // Livestream part-time không nhập báo cáo nên không cấp tài khoản — trừ khi
+  // họ còn kiêm tổ khác, vì tổ kia vẫn cần họ tự đăng nhập để nhập.
+  const isLivePartTime =
+    depts.length === 1 && isLive && employment === "PT";
   const workInfoMissing = isLive && (!region || !employment);
 
   const emailInvalid = !!email && !EMAIL_RE.test(email);
@@ -593,8 +679,7 @@ function AddEmployeeDialog({
       const res = await createEmployee({
         name: name.trim(),
         shortName: shortName.trim() || name.trim().split(/\s+/).slice(-1)[0],
-        dept,
-        role: dept === "LEAD" ? "LEAD" : "STAFF",
+        depts,
         region: isLive ? region : null,
         employment: isLive ? employment : null,
         email: isLivePartTime ? undefined : email.trim(),
@@ -660,22 +745,15 @@ function AddEmployeeDialog({
 
               <div className="space-y-1.5">
                 <Label htmlFor="emp-dept">Bộ phận</Label>
-                <Select
-                  value={dept}
-                  onValueChange={(v) => v && setDept(v as DeptCode)}
-                  items={DEPT_ITEMS}
-                >
-                  <SelectTrigger id="emp-dept" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DEPT_OPTIONS.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        {DEPT_LABEL[d]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DeptPicker
+                  id="emp-dept"
+                  value={depts}
+                  className="h-8 w-full"
+                  onChange={setDeptsState}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Tick được nhiều tổ nếu kiêm nhiệm.
+                </p>
               </div>
             </div>
 

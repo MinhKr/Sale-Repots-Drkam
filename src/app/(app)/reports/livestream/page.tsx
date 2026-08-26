@@ -13,5 +13,7 @@ export default async function LivestreamReportPage() {
   if (!access.canView) notFound();
 
   const rows = await listReports("LIVESTREAM", access.visibleIds);
-  return <LivestreamTab initialRows={rows} perm={access.perm} />;
+  return (
+    <LivestreamTab initialRows={rows} roster={access.roster} perm={access.perm} />
+  );
 }

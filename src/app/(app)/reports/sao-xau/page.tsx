@@ -21,6 +21,7 @@ export default async function SaoXauReportPage() {
     <ReportTab
       tab="SAO_XAU"
       initialRows={rows}
+      roster={access.roster}
       openings={openings}
       perm={access.perm}
     />

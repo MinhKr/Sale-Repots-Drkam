@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { deptsOf } from "@/lib/employees/depts";
 import { createClient } from "@/lib/supabase/server";
 import type { DeptCode, Employment, Region, Role } from "@/lib/mock/types";
 
@@ -50,7 +51,10 @@ export interface ActorEmployee {
   name: string;
   shortName: string;
   initials: string;
+  /** Bộ phận chính — dùng để hiển thị */
   dept: DeptCode;
+  /** Toàn bộ bộ phận kiêm nhiệm — nguồn sự thật cho phân quyền */
+  depts: DeptCode[];
   role: Role;
   /** Chỉ Livestream mới có — quyết định quyền nhập báo cáo Livestream */
   region: Region | null;
@@ -75,6 +79,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
       shortName: schema.employees.shortName,
       initials: schema.employees.initials,
       dept: schema.employees.dept,
+      depts: schema.employees.depts,
       role: schema.employees.role,
       region: schema.employees.region,
       employment: schema.employees.employment,
@@ -99,6 +104,10 @@ export async function getCurrentUser(): Promise<CurrentUser> {
           shortName: employee.shortName,
           initials: employee.initials,
           dept: employee.dept as DeptCode,
+          depts: deptsOf({
+            dept: employee.dept as DeptCode,
+            depts: employee.depts as DeptCode[] | null,
+          }),
           role: employee.role as Role,
           region: employee.region as Region | null,
           employment: employee.employment as Employment | null,
@@ -111,7 +120,9 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 export async function hasFullAccessNow(): Promise<boolean> {
   const me = await getCurrentUser();
   return (
-    me.isManager || me.employee?.role === "LEAD" || me.employee?.dept === "ADMIN"
+    me.isManager ||
+    me.employee?.role === "LEAD" ||
+    !!me.employee?.depts.includes("ADMIN")
   );
 }
 
@@ -123,7 +134,8 @@ export async function hasFullAccessNow(): Promise<boolean> {
 export async function requireFullAccess(): Promise<CurrentUser> {
   const current = await getCurrentUser();
   const e = current.employee;
-  const ok = current.isManager || e?.role === "LEAD" || e?.dept === "ADMIN";
+  const ok =
+    current.isManager || e?.role === "LEAD" || !!e?.depts.includes("ADMIN");
   if (!ok) {
     throw new Error("Bạn không có quyền thực hiện thao tác này.");
   }

@@ -71,6 +71,8 @@ async function main() {
         name: e.name,
         shortName: e.shortName,
         dept: e.dept,
+        // Dữ liệu mẫu ai cũng 1 tổ; kiêm nhiệm là do quản lý tick thêm sau.
+        depts: [e.dept],
         role: e.role,
         initials: e.initials,
         active: e.active,

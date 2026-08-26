@@ -20,13 +20,15 @@ import {
   type ReportConfig,
   type ReportRow,
 } from "@/lib/mock/reports";
-import { EMPLOYEES } from "@/lib/mock/employees";
+import type { RosterEmployee } from "@/lib/employees/roster";
 import { formatMetric, todayIso } from "@/lib/format";
 import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
 
 interface ReportFormProps {
   config: ReportConfig;
+  /** Danh bạ nhân viên lấy từ DB — nguồn duy nhất để biết ai thuộc bộ phận nào */
+  roster: RosterEmployee[];
   /** `code` các nhân viên người đang đăng nhập được nhập hộ */
   editableCodes: string[];
   /** null = tạo mới; có giá trị = sửa */
@@ -39,22 +41,29 @@ interface ReportFormProps {
 
 export function ReportForm({
   config,
+  roster,
   editableCodes,
   initial,
   pending,
   onSubmit,
   onCancel,
 }: ReportFormProps) {
-  // Chỉ liệt kê nhân viên mà người đang đăng nhập được nhập hộ. Khi sửa 1 dòng
-  // cũ thì luôn giữ lại chính nhân viên đó để ô chọn không bị trống.
+  // Chỉ liệt kê nhân viên ĐANG thuộc bộ phận của tab này (một người kiêm nhiều
+  // tổ thì hiện ở mọi tab tương ứng) và người đang đăng nhập được nhập hộ. Khi sửa 1
+  // dòng cũ thì luôn giữ lại chính nhân viên đó để ô chọn không bị trống —
+  // kể cả khi họ vừa bị chuyển sang bộ phận khác.
   const employees = useMemo(() => {
     const allowed = new Set(editableCodes);
-    return EMPLOYEES.filter(
+    const keep = roster.filter(
       (e) =>
-        config.allowedDepts.includes(e.dept) &&
-        (allowed.has(e.id) || e.id === initial?.employeeId),
+        e.depts.some((d) => config.allowedDepts.includes(d)) &&
+        allowed.has(e.id),
     );
-  }, [config, editableCodes, initial?.employeeId]);
+    const editingOne = roster.find((e) => e.id === initial?.employeeId);
+    if (editingOne && !keep.some((e) => e.id === editingOne.id))
+      keep.push(editingOne);
+    return keep;
+  }, [config, roster, editableCodes, initial?.employeeId]);
   const employeeItems = useMemo(
     () => Object.fromEntries(employees.map((e) => [e.id, e.shortName])),
     [employees],

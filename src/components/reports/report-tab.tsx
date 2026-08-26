@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import {
   ChevronRight,
   Eye,
@@ -40,11 +40,11 @@ import {
   type ReportConfig,
   type ReportRow,
 } from "@/lib/mock/reports";
-import { getEmployee } from "@/lib/mock/employees";
 import { formatDateVn, formatMetric, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { deleteReport, saveReport } from "@/lib/reports/actions";
+import type { RosterEmployee } from "@/lib/employees/roster";
 import type { TabPermission } from "@/lib/reports/guard";
 
 /**
@@ -144,6 +144,8 @@ function BacklogAlert({
 interface ReportTabProps {
   tab: ConfigTab;
   initialRows: ReportRow[];
+  /** Danh bạ nhân viên (DB) — để hiện tên và lọc ô chọn theo bộ phận hiện tại */
+  roster: RosterEmployee[];
   /** các mốc tồn đầu kỳ (chỉ tab có backlog dùng tới) */
   openings?: OpeningRow[];
   /** Quyền nhập của người đang đăng nhập (tính ở server) */
@@ -153,10 +155,15 @@ interface ReportTabProps {
 export function ReportTab({
   tab,
   initialRows,
+  roster,
   openings = [],
   perm,
 }: ReportTabProps) {
   const config = CONFIG_BY_TAB[tab];
+  const byCode = useMemo(
+    () => new Map(roster.map((e) => [e.id, e])),
+    [roster],
+  );
   // Ẩn nút chỉ để gọn mắt — server vẫn tự chặn lại ở mọi action ghi.
   const editable = new Set(perm.editableCodes);
   const canEditAny = editable.size > 0;
@@ -320,7 +327,7 @@ export function ReportTab({
             </TableHeader>
             <TableBody>
               {sorted.map((row) => {
-                const emp = getEmployee(row.employeeId);
+                const emp = byCode.get(row.employeeId);
                 const metrics = computeMetrics(config, row.values);
                 const isOpen = expanded.has(row.id);
                 return (
@@ -432,6 +439,7 @@ export function ReportTab({
           <ReportForm
             key={seq}
             config={config}
+            roster={roster}
             editableCodes={perm.editableCodes}
             initial={editing}
             pending={saving}

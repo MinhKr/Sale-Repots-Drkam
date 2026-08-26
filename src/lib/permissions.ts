@@ -1,3 +1,4 @@
+import { deptsOf, inAnyDept } from "@/lib/employees/depts";
 import { CONFIG_BY_TAB, type ConfigTab } from "@/lib/mock/reports";
 import type { DeptCode, Employment, Region, Role } from "@/lib/mock/types";
 
@@ -17,6 +18,10 @@ import type { DeptCode, Employment, Region, Role } from "@/lib/mock/types";
  *  - Admin (Hương) và Lead (Ly) nhập được MỌI tab, cho MỌI người.
  *  - Tài khoản chung của phòng (sale@drkam.vn) cũng có toàn quyền.
  *
+ * Từ 2026-08-26 một người kiêm được NHIỀU bộ phận (`employees.depts`): mọi
+ * quy tắc dưới đây xét trên TOÀN BỘ danh sách đó, chỉ cần trùng 1 bộ phận là
+ * tính. Kiêm Sale + CSKH thì nhập được cả hai tab, cho chính mình.
+ *
  * ⚠️ File này chỉ TÍNH ra quyền. Việc CHẶN thật nằm ở server actions
  * (lib/reports/actions.ts) — giao diện ẩn nút chỉ là cho gọn mắt.
  */
@@ -35,7 +40,10 @@ export interface Actor {
   isManager: boolean;
   employee: {
     id: string;
+    /** Bộ phận chính (hiển thị) */
     dept: DeptCode;
+    /** Toàn bộ bộ phận kiêm nhiệm — nguồn sự thật cho quyền */
+    depts?: DeptCode[] | null;
     role: Role;
     region: Region | null;
     employment: Employment | null;
@@ -46,6 +54,7 @@ export interface Actor {
 export interface EmployeeLike {
   id: string;
   dept: DeptCode;
+  depts?: DeptCode[] | null;
   region?: Region | null;
   employment?: Employment | null;
   active?: boolean;
@@ -55,7 +64,7 @@ export interface EmployeeLike {
 export function hasFullAccess(actor: Actor): boolean {
   if (actor.isManager) return true;
   const e = actor.employee;
-  return !!e && (e.role === "LEAD" || e.dept === "ADMIN");
+  return !!e && (e.role === "LEAD" || deptsOf(e).includes("ADMIN"));
 }
 
 /**
@@ -70,7 +79,7 @@ export function editableEmployees<T extends EmployeeLike>(
   const config = CONFIG_BY_TAB[tab];
   // Chỉ xét những NV hợp lệ với tab (và còn làm việc).
   const eligible = employees.filter(
-    (e) => config.allowedDepts.includes(e.dept) && e.active !== false,
+    (e) => inAnyDept(e, config.allowedDepts) && e.active !== false,
   );
 
   if (hasFullAccess(actor)) return eligible;
@@ -79,7 +88,7 @@ export function editableEmployees<T extends EmployeeLike>(
   if (!me) return [];
 
   // Không thuộc bộ phận sở hữu tab → chỉ xem.
-  if (!TAB_OWNER_DEPTS[tab].includes(me.dept)) return [];
+  if (!inAnyDept(me, TAB_OWNER_DEPTS[tab])) return [];
 
   if (tab === "LIVESTREAM") {
     // Parttime không được nhập gì.
@@ -88,7 +97,7 @@ export function editableEmployees<T extends EmployeeLike>(
     return eligible.filter(
       (e) =>
         e.id === me.id ||
-        (e.dept === "LIVESTREAM" &&
+        (deptsOf(e).includes("LIVESTREAM") &&
           e.employment === "PT" &&
           e.region === me.region),
     );
@@ -119,8 +128,7 @@ export function visibleEmployees<T extends EmployeeLike>(
   const seen = new Set(editable.map((e) => e.id));
   const config = CONFIG_BY_TAB[tab];
   const self = employees.filter(
-    (e) =>
-      e.id === me.id && !seen.has(e.id) && config.allowedDepts.includes(e.dept),
+    (e) => e.id === me.id && !seen.has(e.id) && inAnyDept(e, config.allowedDepts),
   );
   return [...editable, ...self];
 }
@@ -132,7 +140,7 @@ export function visibleTabs(actor: Actor): ConfigTab[] {
 
   const me = actor.employee;
   if (!me) return [];
-  return all.filter((t) => TAB_OWNER_DEPTS[t].includes(me.dept));
+  return all.filter((t) => inAnyDept(me, TAB_OWNER_DEPTS[t]));
 }
 
 /** Có được nhập gì ở tab này không (dùng để ẩn nút "Nhập báo cáo"). */
@@ -161,7 +169,11 @@ export function whyReadOnly(actor: Actor, tab: ConfigTab): string {
   const me = actor.employee;
   if (!me) return "Tài khoản của bạn chỉ được xem báo cáo ở mục này.";
 
-  if (tab === "LIVESTREAM" && me.dept === "LIVESTREAM" && me.employment !== "FT")
+  if (
+    tab === "LIVESTREAM" &&
+    deptsOf(me).includes("LIVESTREAM") &&
+    me.employment !== "FT"
+  )
     return "Bạn là Livestream part-time nên không nhập báo cáo — bạn fulltime cùng miền nhập hộ.";
 
   if (tab === "SAO_XAU")

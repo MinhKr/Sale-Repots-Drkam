@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { requireManager } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { primaryDept, sortDepts } from "./depts";
 import { DEPTS, MIN_PASSWORD_LENGTH } from "./constants";
 import { emailFromName } from "./email";
 
@@ -20,6 +21,15 @@ function revalidateAll() {
   revalidatePath("/nhan-vien");
   revalidatePath("/home");
   revalidatePath("/kpi");
+}
+
+/** Các trang phụ thuộc vào "ai thuộc bộ phận nào" — đổi dept là phải nạp lại. */
+function revalidateReports() {
+  revalidatePath("/reports/sale");
+  revalidatePath("/reports/cskh");
+  revalidatePath("/reports/livestream");
+  revalidatePath("/reports/sao-xau");
+  revalidatePath("/dashboard-ca-nhan");
 }
 
 /** Chữ cái viết tắt cho avatar: 2 ký tự đầu của tên gọi. */
@@ -77,7 +87,10 @@ export async function createAccount(input: unknown): Promise<CreateAccountResult
 
   if (!emp) throw new Error("Không tìm thấy nhân viên.");
   if (emp.authUserId) throw new Error(`${emp.shortName} đã có tài khoản rồi.`);
-  if (emp.dept === "LIVESTREAM" && emp.employment === "PT") {
+  // Đọc thẳng cột DB (enum còn value "MKT" đã ngưng dùng) — needsAccount chỉ
+  // cần chuỗi nên khỏi phải ép kiểu về DeptCode.
+  const empDepts = emp.depts?.length ? emp.depts : [emp.dept];
+  if (!needsAccount(empDepts, emp.employment)) {
     throw new Error(
       `${emp.shortName} là Livestream part-time nên không cần tài khoản — báo cáo do bạn fulltime cùng miền nhập hộ.`,
     );
@@ -125,8 +138,8 @@ const newEmployeeSchema = z
   .object({
     name: z.string().trim().min(2, "Họ tên quá ngắn").max(100),
     shortName: z.string().trim().min(1, "Chưa có tên hiển thị").max(50),
-    dept: z.enum(DEPTS),
-    role: z.enum(["STAFF", "LEAD"]),
+    /** Bộ phận kiêm nhiệm — ít nhất 1 */
+    depts: z.array(z.enum(DEPTS)).min(1, "Phải chọn ít nhất 1 bộ phận."),
     /** Chỉ Livestream mới cần — quyết định quyền nhập báo cáo */
     region: z.enum(["MB", "MN"]).nullish(),
     employment: z.enum(["FT", "PT"]).nullish(),
@@ -134,16 +147,19 @@ const newEmployeeSchema = z
     email: z.string().trim().toLowerCase().optional(),
     password: z.string().optional(),
   })
-  .refine((v) => v.dept !== "LIVESTREAM" || (!!v.region && !!v.employment), {
-    message: "Nhân viên Livestream phải chọn miền và loại hợp đồng.",
-  });
+  .refine(
+    (v) => !v.depts.includes("LIVESTREAM") || (!!v.region && !!v.employment),
+    { message: "Nhân viên Livestream phải chọn miền và loại hợp đồng." },
+  );
 
 /**
  * Livestream part-time KHÔNG nhập báo cáo (fulltime cùng miền nhập hộ) nên
- * không cấp tài khoản đăng nhập. Mọi trường hợp còn lại đều cấp.
+ * không cấp tài khoản đăng nhập. Mọi trường hợp còn lại đều cấp — kể cả người
+ * kiêm Livestream PT + một tổ khác, vì tổ kia vẫn cần họ tự nhập.
  */
-function needsAccount(dept: string, employment?: string | null): boolean {
-  return !(dept === "LIVESTREAM" && employment === "PT");
+function needsAccount(depts: string[], employment?: string | null): boolean {
+  const onlyLive = depts.length === 1 && depts[0] === "LIVESTREAM";
+  return !(onlyLive && employment === "PT");
 }
 
 /** Thêm nhân viên mới — cấp kèm tài khoản, trừ Livestream part-time. */
@@ -152,7 +168,8 @@ export async function createEmployee(
 ): Promise<{ employeeId: string; account: CreateAccountResult | null }> {
   await requireManager();
   const values = newEmployeeSchema.parse(input);
-  const withAccount = needsAccount(values.dept, values.employment);
+  const depts = sortDepts(values.depts);
+  const withAccount = needsAccount(depts, values.employment);
 
   // `code` (slug) là khóa ổn định để map dữ liệu. Người không được cấp tài
   // khoản vẫn cần code nên sinh từ họ tên theo đúng quy tắc email.
@@ -168,8 +185,9 @@ export async function createEmployee(
       code,
       name: values.name,
       shortName: values.shortName,
-      dept: values.dept,
-      role: values.role,
+      dept: primaryDept(depts, depts[0]),
+      depts,
+      role: depts.includes("LEAD") ? "LEAD" : "STAFF",
       initials: initialsFromName(values.name),
       region: values.region ?? null,
       employment: values.employment ?? null,
@@ -181,6 +199,7 @@ export async function createEmployee(
 
   if (!withAccount) {
     revalidateAll();
+    revalidateReports();
     return { employeeId: inserted.id, account: null };
   }
 
@@ -199,7 +218,60 @@ export async function createEmployee(
   }
 
   revalidateAll();
+  revalidateReports();
   return { employeeId: inserted.id, account };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Đổi bộ phận                                                         */
+/* ------------------------------------------------------------------ */
+
+const setDeptsSchema = idSchema.extend({
+  depts: z.array(z.enum(DEPTS)).min(1, "Phải chọn ít nhất 1 bộ phận."),
+});
+
+/**
+ * Đặt danh sách bộ phận của nhân viên — một người kiêm được nhiều tổ.
+ *
+ * Bộ phận quyết định nhân viên xuất hiện ở tab báo cáo nào và ai được nhập hộ
+ * (xem lib/permissions.ts), nên chỉ quản lý mới đổi được.
+ *
+ * Ba hệ quả đi kèm, làm luôn ở đây để dữ liệu không tự mâu thuẫn:
+ *  - `dept` (bộ phận chính) được tính lại theo DEPT_ORDER. Đây là tổ mà KPI và
+ *    thanh tiến độ trên Trang chủ xếp họ vào — cố ý chỉ một, để một người
+ *    kiêm 2 tổ không bị cộng doanh thu hai lần.
+ *  - Bỏ tick Livestream → xóa Miền + FT/PT (hai cột chỉ có nghĩa với Livestream).
+ *  - Tick/bỏ tick LEAD → đổi `role` theo, vì quyền toàn phần đọc `role`.
+ *
+ * Người mới tick Livestream sẽ chưa có Miền/FT-PT: bảng hiện sẵn hai ô chọn để
+ * quản lý điền, và chừng nào chưa điền thì họ chưa nhập được báo cáo Livestream.
+ */
+export async function setDepts(input: unknown): Promise<void> {
+  await requireManager();
+  const { employeeId, depts: raw } = setDeptsSchema.parse(input);
+  const depts = sortDepts(raw);
+
+  const [emp] = await db
+    .select()
+    .from(schema.employees)
+    .where(eq(schema.employees.id, employeeId))
+    .limit(1);
+  if (!emp) throw new Error("Không tìm thấy nhân viên.");
+
+  const leavingLive = !depts.includes("LIVESTREAM");
+
+  await db
+    .update(schema.employees)
+    .set({
+      depts,
+      dept: primaryDept(depts, depts[0]),
+      role: depts.includes("LEAD") ? "LEAD" : "STAFF",
+      ...(leavingLive ? { region: null, employment: null } : {}),
+    })
+    .where(eq(schema.employees.id, employeeId));
+
+  revalidateAll();
+  revalidateReports();
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,6 +365,7 @@ export async function setEmployeeActive(input: unknown): Promise<void> {
     .where(eq(schema.employees.id, employeeId));
 
   revalidateAll();
+  revalidateReports();
 }
 
 /* ------------------------------------------------------------------ */

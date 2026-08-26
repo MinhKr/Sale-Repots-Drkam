@@ -13,5 +13,12 @@ export default async function CskhReportPage() {
   if (!access.canView) notFound();
 
   const rows = await listReports("CSKH", access.visibleIds);
-  return <ReportTab tab="CSKH" initialRows={rows} perm={access.perm} />;
+  return (
+    <ReportTab
+      tab="CSKH"
+      initialRows={rows}
+      roster={access.roster}
+      perm={access.perm}
+    />
+  );
 }
