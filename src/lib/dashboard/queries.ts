@@ -74,8 +74,15 @@ interface Base {
   dailyTotal: Map<string, number>;
   /** "SALE" | "CSKH" | "LIVE" → (date → doanh thu ngày đó của bộ phận) */
   dailyByDept: Map<string, Map<string, number>>;
-  /** empId(uuid) → (date → doanh thu) */
-  empDaily: Map<string, Map<string, number>>;
+  /**
+   * "SALE" | "CSKH" | "LIVE" → empId(uuid) → (date → doanh thu).
+   *
+   * Tách theo NGUỒN báo cáo là bắt buộc từ 2026-08-26, khi một người kiêm được
+   * nhiều tổ: doanh thu thuộc về tổ mà báo cáo được nhập, KHÔNG phải tổ của
+   * người nhập. Chinh (CSKH) nhập hộ vài dòng Sale thì phần đó cộng vào tổng
+   * tổ Sale, còn KPI cá nhân của Chinh vẫn chỉ tính CSKH (khách chốt 2026-08-26).
+   */
+  empDailyBySrc: Map<string, Map<string, Map<string, number>>>;
   employees: EmpRow[];
   /** empId(uuid) → mục tiêu tháng anchor */
   targetById: Map<string, number>;
@@ -144,7 +151,7 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
 
   const dailyTotal = new Map<string, number>();
   const dailyByDept = new Map<string, Map<string, number>>();
-  const empDaily = new Map<string, Map<string, number>>();
+  const empDailyBySrc = new Map<string, Map<string, Map<string, number>>>();
   const monthsSet = new Set<string>();
 
   for (const r of rows) {
@@ -158,10 +165,16 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
       dailyByDept.set(r.src, bySrc);
     }
     bySrc.set(date, (bySrc.get(date) ?? 0) + rev);
-    let m = empDaily.get(r.employeeId);
+
+    let empBySrc = empDailyBySrc.get(r.src);
+    if (!empBySrc) {
+      empBySrc = new Map();
+      empDailyBySrc.set(r.src, empBySrc);
+    }
+    let m = empBySrc.get(r.employeeId);
     if (!m) {
       m = new Map();
-      empDaily.set(r.employeeId, m);
+      empBySrc.set(r.employeeId, m);
     }
     m.set(date, (m.get(date) ?? 0) + rev);
   }
@@ -213,7 +226,7 @@ async function loadBase(selectedMonth?: string): Promise<Base> {
     anchor,
     dailyTotal,
     dailyByDept,
-    empDaily,
+    empDailyBySrc,
     employees: empList,
     targetById,
     mucTieuThang,
@@ -241,11 +254,14 @@ function sumRange(map: Map<string, number>, from: string, to: string) {
 /**
  * Tiến độ doanh thu của MỘT tổ trong phòng Sale (Sale / CSKH / Livestream).
  *
- * ⚠️ Tổng `revenue` của 3 tổ KHÔNG chắc bằng doanh thu toàn phòng, và tổng
- * `target` cũng không chắc bằng `mucTieuThang`: nếu người ở bộ phận ADMIN/LEAD
- * có dòng báo cáo doanh thu hoặc có KPI thì phần đó nằm ngoài 3 tổ này. Vì vậy
- * mỗi thanh con luôn đo theo mục tiêu của CHÍNH tổ đó, không phải phần trăm
- * đóng góp vào thanh cha.
+ * `revenue` lấy theo NGUỒN báo cáo (tab Sale / CSKH / Livestream), còn `target`
+ * lấy theo BỘ PHẬN CHÍNH của từng người. Hai vế cố ý lệch nhau: người kiêm
+ * nhiều tổ nhập số cho tổ nào thì tổ đó nhận doanh thu, nhưng KPI cá nhân của
+ * họ vẫn nằm nguyên ở tổ gốc (khách chốt 2026-08-26).
+ *
+ * ⚠️ Tổng `target` của 3 tổ không chắc bằng `mucTieuThang`: người ở ADMIN/LEAD
+ * có KPI thì phần đó nằm ngoài 3 tổ này. Vì vậy mỗi thanh con luôn đo theo mục
+ * tiêu của CHÍNH tổ đó, không phải phần trăm đóng góp vào thanh cha.
  */
 export interface DeptProgress {
   dept: DeptCode;
@@ -404,9 +420,26 @@ export async function getTeamDashboard(
   };
 }
 
-/** Xếp hạng NV theo doanh thu tháng anchor (trừ LEAD). */
+/**
+ * Nguồn báo cáo tương ứng mỗi bộ phận — dùng để quy doanh thu về đúng tổ.
+ * ADMIN/LEAD không có tổ bán hàng nên không có nguồn nào.
+ */
+const SRC_BY_DEPT: Partial<Record<DeptCode, string>> = {
+  SALE: "SALE",
+  CSKH: "CSKH",
+  LIVESTREAM: "LIVE",
+};
+
+/**
+ * Xếp hạng NV theo doanh thu tháng anchor (trừ ADMIN + LEAD).
+ *
+ * Doanh thu tính ở đây là doanh thu KPI của cá nhân: CHỈ lấy từ tab của bộ
+ * phận chính của họ. Chinh (CSKH) có nhập hộ vài dòng Sale thì phần đó vào
+ * tổng tổ Sale chứ không vào thành tích cá nhân của Chinh — khách chốt
+ * 2026-08-26: "2 bạn đó không có KPI Sale".
+ */
 function buildRanking(base: Base): RankRow[] {
-  const { anchor, empDaily, employees, targetById } = base;
+  const { anchor, empDailyBySrc, employees, targetById } = base;
   if (!anchor) return [];
   const mKey = monthKey(anchor);
 
@@ -414,7 +447,10 @@ function buildRanking(base: Base): RankRow[] {
     // Admin + Lead không phải NV KPI bán hàng → không lên bảng xếp hạng
     .filter((e) => e.dept !== "LEAD" && e.dept !== "ADMIN")
     .map((e) => {
-      const revenue = empMonthRevenue(empDaily, e.id, mKey);
+      const src = SRC_BY_DEPT[e.dept];
+      const revenue = src
+        ? empMonthRevenue(empDailyBySrc.get(src), e.id, mKey)
+        : 0;
       const target = targetById.get(e.id) ?? 0;
       const progress = ratio(revenue, target);
       return {
@@ -435,13 +471,23 @@ function buildRanking(base: Base): RankRow[] {
 }
 
 function empMonthRevenue(
-  empDaily: Map<string, Map<string, number>>,
+  empDaily: Map<string, Map<string, number>> | undefined,
   empId: string,
   mKey: string,
 ) {
   let s = 0;
-  const m = empDaily.get(empId);
+  const m = empDaily?.get(empId);
   if (m) for (const [d, v] of m) if (d.slice(0, 7) === mKey) s += v;
+  return s;
+}
+
+/** Tổng doanh thu 1 tháng của cả 1 nguồn báo cáo (= của cả tổ). */
+function srcMonthRevenue(
+  daily: Map<string, number> | undefined,
+  mKey: string,
+): number {
+  let s = 0;
+  if (daily) for (const [d, v] of daily) if (d.slice(0, 7) === mKey) s += v;
   return s;
 }
 
@@ -453,21 +499,34 @@ function empMonthRevenue(
  * đang loại 2 bộ phận này.
  */
 function buildDeptProgress(base: Base): DeptProgress[] {
-  const { anchor, empDaily, employees, targetById } = base;
+  const { anchor, dailyByDept, empDailyBySrc, employees, targetById } = base;
   if (!anchor) return [];
   const mKey = monthKey(anchor);
 
   return KPI_DEPTS.map((dept) => {
-    const members = employees.filter((e) => e.dept === dept);
-    let revenue = 0;
+    const src = SRC_BY_DEPT[dept] as string;
+
+    // DOANH THU: lấy theo NGUỒN báo cáo — mọi dòng nhập ở tab này, bất kể
+    // người nhập thuộc tổ nào. Người kiêm 2 tổ nhập cho tổ nào thì tổ đó ăn.
+    const revenue = srcMonthRevenue(dailyByDept.get(src), mKey);
+
+    // MỤC TIÊU: chỉ cộng của người có BỘ PHẬN CHÍNH là tổ này. Chinh/Phương
+    // là CSKH có nhập hộ Sale nhưng không mang KPI Sale nên không cộng vào
+    // mục tiêu tổ Sale (khách chốt 2026-08-26).
     let target = 0;
-    let activeCount = 0;
-    for (const e of members) {
-      const rev = empMonthRevenue(empDaily, e.id, mKey);
-      revenue += rev;
-      target += targetById.get(e.id) ?? 0;
-      if (rev > 0) activeCount += 1;
+    for (const e of employees) {
+      if (e.dept === dept) target += targetById.get(e.id) ?? 0;
     }
+
+    // Số người thực sự có phát sinh doanh thu Ở TAB NÀY trong tháng.
+    let activeCount = 0;
+    const byEmp = empDailyBySrc.get(src);
+    if (byEmp) {
+      for (const empId of byEmp.keys()) {
+        if (empMonthRevenue(byEmp, empId, mKey) > 0) activeCount += 1;
+      }
+    }
+
     const progress = ratio(revenue, target);
     return {
       dept,
@@ -844,7 +903,10 @@ export async function getPersonalDashboards(
     .filter((r) => !allow || allow.has(r.employeeId))
     .map((r) => {
     const emp = empByCode.get(r.employeeId)!;
-    const daily = base.empDaily.get(emp.id);
+    // Cùng nguồn với con số doanh thu ở buildRanking — nếu lấy tổng mọi tab
+    // thì biểu đồ 14 ngày sẽ không khớp con số lớn hiển thị ngay phía trên.
+    const src = SRC_BY_DEPT[emp.dept];
+    const daily = src ? base.empDailyBySrc.get(src)?.get(emp.id) : undefined;
     const perDayTarget = dailyTarget(r.target);
     const series: RevenuePoint[] = [];
     for (let i = 13; i >= 0; i--) {

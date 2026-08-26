@@ -26,11 +26,17 @@ export function sortDepts(depts: DeptCode[]): DeptCode[] {
 }
 
 /**
- * Bộ phận chính = bộ phận đứng đầu theo DEPT_ORDER.
- * Ví dụ tick Sale + Lead → chính là Sale (được tính KPI cùng tổ Sale).
+ * Bộ phận CHÍNH = tổ mang KPI của người đó.
+ *
+ * Quy tắc: GIỮ NGUYÊN tổ hiện tại nếu tổ đó vẫn còn được tick. Tick thêm tổ
+ * mới không được làm nhảy tổ gốc — Chinh là CSKH, tick thêm Sale để nhập hộ
+ * số liệu Sale thì KPI của cô ấy vẫn phải nằm ở CSKH, không có KPI Sale
+ * (khách chốt 2026-08-26). Chỉ khi tổ gốc bị bỏ tick mới lấy tổ đầu theo
+ * DEPT_ORDER.
  */
-export function primaryDept(depts: DeptCode[], fallback: DeptCode): DeptCode {
-  return sortDepts(depts)[0] ?? fallback;
+export function primaryDept(depts: DeptCode[], current: DeptCode): DeptCode {
+  if (depts.includes(current)) return current;
+  return sortDepts(depts)[0] ?? current;
 }
 
 /**
